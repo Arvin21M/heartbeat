@@ -99,7 +99,7 @@ export function FilterBar({
   shown,
 }: Props) {
   const [repoQuery, setRepoQuery] = useState('');
-  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [reposExpanded, setReposExpanded] = useState(false);
 
   const fundNames = useMemo(() => Object.keys(funds).sort(), [funds]);
   const isFundActive = (f: string) => selectedFunds != null && selectedFunds.has(f);
@@ -126,15 +126,19 @@ export function FilterBar({
         ? `${filteredRepos.length} of ${repos.length} matching`
         : `${repos.length}`;
 
-  const renderRepoChips = (list: string[], label: (r: string) => string) => {
+  const renderRepoChips = (list: string[]) => {
     if (list.length === 0) {
       return <span className="text-xs text-zinc-600">no matching repos</span>;
     }
-    return list.map((r) => (
-      <Chip key={r} active={isRepoActive(r)} onClick={() => onToggleRepo(r)} title={r}>
-        {label(r)}
-      </Chip>
-    ));
+    return list.map((r) => {
+      const short = r.split('/').pop() ?? r;
+      return (
+        <Chip key={r} active={isRepoActive(r)} onClick={() => onToggleRepo(r)} title={r}>
+          <span className="sm:hidden">{short}</span>
+          <span className="hidden sm:inline">{r}</span>
+        </Chip>
+      );
+    });
   };
 
   const repoClearIfActive = selectedRepos != null ? onClearRepos : undefined;
@@ -197,10 +201,12 @@ export function FilterBar({
         </ChipRow>
       )}
 
+      <div className="flex items-center gap-1.5">{filterRowContent}</div>
+
       <details
-        className="group sm:hidden"
-        open={mobileExpanded}
-        onToggle={(e) => setMobileExpanded(e.currentTarget.open)}
+        className="group"
+        open={reposExpanded || repoQuery.length > 0}
+        onToggle={(e) => setReposExpanded(e.currentTarget.open)}
       >
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-center gap-1.5 text-xs text-zinc-500">
           <span className="text-zinc-600 inline-block transition-transform group-[&[open]]:rotate-90">
@@ -209,17 +215,10 @@ export function FilterBar({
           <span>repos &middot; {repoCountLabel}</span>
         </summary>
         <div className="flex flex-wrap items-center gap-1.5 pt-2">
-          {renderRepoChips(filteredRepos, (r) => r.split('/').pop() ?? r)}
+          {renderRepoChips(filteredRepos)}
           {repoClearIfActive && <ClearButton onClick={repoClearIfActive} />}
         </div>
-        <div className="flex items-center gap-1.5 pt-2">{filterRowContent}</div>
       </details>
-
-      <ChipRow label="repos:" onClear={repoClearIfActive} className="hidden sm:flex">
-        {renderRepoChips(filteredRepos, (r) => r)}
-      </ChipRow>
-
-      <div className="hidden sm:flex items-center gap-1.5">{filterRowContent}</div>
 
       <ChipRow label="types:" onClear={selectedTypes != null ? onClearTypes : undefined}>
         {EVENT_TYPES.map((t: EventType) => {

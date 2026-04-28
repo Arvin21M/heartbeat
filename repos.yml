@@ -2,6 +2,23 @@
 # Each entry is "owner/name". Public repos work with the default
 # GITHUB_TOKEN; private repos require a PAT with `repo` scope.
 repos:
-  - facebook/react
-  - vitejs/vite
-  - tailwindlabs/tailwindcss
+  - toneloc/stable-channels
+  - trbouma/safebox
+  - Trustroots/nostroots
+  - TsukemonoGit/lumilumi
+  - utreexo/utreexo
+  - utreexo/utreexod
+  - vexl-it/vexl
+  - vicariousdrama/cornychat
+  - VincenzoImp/bigbrotr
+  - vincenzopalazzo/lampo.rs
+  - vinteumorg/floresta
+  - vitorpamplona/amethyst
+  - vnprc/hashpool
+  - vstabile/sig4sats-script
+  - zapstore/zapstore
+  - zerosync/zerosync
+  - zeugmaster/CashuSwift
+  - zeugmaster/macadamia
+  - ZharlieW/Aegis
+  - zmeyer44/flockstr

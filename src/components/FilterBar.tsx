@@ -247,7 +247,7 @@ export function FilterBar({
       </ChipRow>
 
       {selectedActors && selectedActors.size > 0 && (
-        <ChipRow label="actor:" onClear={clearIfActive(actorFilter)}>
+        <ChipRow label="dev:" onClear={clearIfActive(actorFilter)}>
           {[...selectedActors].sort().map((a) => (
             <Chip key={a} active onClick={() => actorFilter.toggle(a)} title={`remove ${a}`}>
               {a}

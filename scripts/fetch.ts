@@ -149,25 +149,27 @@ const REPO_QUERY = /* GraphQL */ `
   }
 `;
 
-function makeEvent(
-  repo: string,
-  type: EventType,
-  nativeId: string,
-  timestamp: string,
-  actor: string,
-  title: string,
-  url: string,
-  shortId: string,
-): Event {
+type EventInput = {
+  repo: string;
+  type: EventType;
+  nativeId: string;
+  timestamp: string;
+  actor: string;
+  title: string;
+  url: string;
+  shortId: string;
+};
+
+function makeEvent(e: EventInput): Event {
   return {
-    id: `${repo}:${type}:${nativeId}`,
-    repo,
-    type,
-    timestamp,
-    actor,
-    title,
-    url,
-    shortId,
+    id: `${e.repo}:${e.type}:${e.nativeId}`,
+    repo: e.repo,
+    type: e.type,
+    timestamp: e.timestamp,
+    actor: e.actor,
+    title: e.title,
+    url: e.url,
+    shortId: e.shortId,
   };
 }
 
@@ -175,107 +177,74 @@ const login = (a: Actor) => a?.login ?? 'unknown';
 
 function commitToEvents(repo: string, n: CommitNode): Event[] {
   return [
-    makeEvent(
+    makeEvent({
       repo,
-      'commit',
-      n.oid,
-      n.committedDate,
-      n.author?.user?.login ?? n.author?.name ?? 'unknown',
-      n.messageHeadline,
-      n.url,
-      n.abbreviatedOid,
-    ),
+      type: 'commit',
+      nativeId: n.oid,
+      timestamp: n.committedDate,
+      actor: n.author?.user?.login ?? n.author?.name ?? 'unknown',
+      title: n.messageHeadline,
+      url: n.url,
+      shortId: n.abbreviatedOid,
+    }),
   ];
 }
 
 function prToEvents(repo: string, n: PrNode): Event[] {
-  const short = `#${n.number}`;
-  const out: Event[] = [
-    makeEvent(
-      repo,
-      'pr_opened',
-      String(n.number),
-      n.createdAt,
-      login(n.author),
-      n.title,
-      n.url,
-      short,
-    ),
+  const common = {
+    repo,
+    nativeId: String(n.number),
+    title: n.title,
+    url: n.url,
+    shortId: `#${n.number}`,
+  };
+  const events: Event[] = [
+    makeEvent({ ...common, type: 'pr_opened', timestamp: n.createdAt, actor: login(n.author) }),
   ];
   if (n.merged && n.mergedAt) {
-    out.push(
-      makeEvent(
-        repo,
-        'pr_merged',
-        String(n.number),
-        n.mergedAt,
-        login(n.mergedBy ?? n.author),
-        n.title,
-        n.url,
-        short,
-      ),
+    events.push(
+      makeEvent({
+        ...common,
+        type: 'pr_merged',
+        timestamp: n.mergedAt,
+        actor: login(n.mergedBy ?? n.author),
+      }),
     );
   } else if (n.closedAt) {
-    out.push(
-      makeEvent(
-        repo,
-        'pr_closed',
-        String(n.number),
-        n.closedAt,
-        login(n.author),
-        n.title,
-        n.url,
-        short,
-      ),
+    events.push(
+      makeEvent({ ...common, type: 'pr_closed', timestamp: n.closedAt, actor: login(n.author) }),
     );
   }
-  return out;
+  return events;
 }
 
 function issueToEvents(repo: string, n: IssueNode): Event[] {
-  const short = `#${n.number}`;
-  const out: Event[] = [
-    makeEvent(
-      repo,
-      'issue_opened',
-      String(n.number),
-      n.createdAt,
-      login(n.author),
-      n.title,
-      n.url,
-      short,
-    ),
-  ];
-  if (n.closedAt) {
-    out.push(
-      makeEvent(
-        repo,
-        'issue_closed',
-        String(n.number),
-        n.closedAt,
-        login(n.author),
-        n.title,
-        n.url,
-        short,
-      ),
-    );
-  }
-  return out;
+  const common = {
+    repo,
+    nativeId: String(n.number),
+    title: n.title,
+    url: n.url,
+    shortId: `#${n.number}`,
+    actor: login(n.author),
+  };
+  const events: Event[] = [makeEvent({ ...common, type: 'issue_opened', timestamp: n.createdAt })];
+  if (n.closedAt)
+    events.push(makeEvent({ ...common, type: 'issue_closed', timestamp: n.closedAt }));
+  return events;
 }
 
 function releaseToEvents(repo: string, n: ReleaseNode): Event[] {
-  const ts = n.publishedAt ?? n.createdAt;
   return [
-    makeEvent(
+    makeEvent({
       repo,
-      'release',
-      n.tagName,
-      ts,
-      login(n.author),
-      n.name ?? n.tagName,
-      n.url,
-      n.tagName,
-    ),
+      type: 'release',
+      nativeId: n.tagName,
+      timestamp: n.publishedAt ?? n.createdAt,
+      actor: login(n.author),
+      title: n.name ?? n.tagName,
+      url: n.url,
+      shortId: n.tagName,
+    }),
   ];
 }
 

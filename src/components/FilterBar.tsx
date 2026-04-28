@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { EVENT_TYPES, type EventType } from '../types';
 import { EVENT_TYPE_META } from '../eventTypes';
 
@@ -57,30 +58,72 @@ export function FilterBar({
   total,
   shown,
 }: Props) {
+  const [repoQuery, setRepoQuery] = useState('');
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+
   const isRepoActive = (r: string) => selectedRepos != null && selectedRepos.has(r);
   const isTypeActive = (t: string) => selectedTypes != null && selectedTypes.has(t);
+
+  const filteredRepos = useMemo(() => {
+    const q = repoQuery.trim().toLowerCase();
+    if (!q) return repos;
+    return repos.filter((r) => r.toLowerCase().includes(q));
+  }, [repos, repoQuery]);
+
   const repoCountLabel =
     selectedRepos != null && selectedRepos.size > 0
       ? `${selectedRepos.size} of ${repos.length} active`
-      : `${repos.length}`;
+      : repoQuery
+        ? `${filteredRepos.length} of ${repos.length} matching`
+        : `${repos.length}`;
 
-  const renderRepoChips = (label: (r: string) => string) => (
-    <>
-      {repos.map((r) => (
-        <Chip key={r} active={isRepoActive(r)} onClick={() => onToggleRepo(r)} title={r}>
-          {label(r)}
-        </Chip>
-      ))}
-      {selectedRepos != null && (
+  const renderRepoChips = (list: string[], label: (r: string) => string) => {
+    if (list.length === 0) {
+      return <span className="text-xs text-zinc-600">no matching repos</span>;
+    }
+    return (
+      <>
+        {list.map((r) => (
+          <Chip key={r} active={isRepoActive(r)} onClick={() => onToggleRepo(r)} title={r}>
+            {label(r)}
+          </Chip>
+        ))}
+        {selectedRepos != null && (
+          <button
+            type="button"
+            onClick={onClearRepos}
+            className="text-xs text-zinc-500 hover:text-zinc-300 ml-1"
+          >
+            clear
+          </button>
+        )}
+      </>
+    );
+  };
+
+  const filterRow = (
+    <div className="flex items-center gap-1.5">
+      <span className="text-zinc-600 text-xs mr-1 shrink-0">filter:</span>
+      <input
+        type="text"
+        value={repoQuery}
+        onChange={(e) => setRepoQuery(e.target.value)}
+        placeholder="repo name"
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
+        className="text-xs bg-zinc-900 border border-zinc-800 rounded px-2 py-1 sm:py-0.5 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-orange-500/60 min-w-0 flex-1 max-w-xs"
+      />
+      {repoQuery && (
         <button
           type="button"
-          onClick={onClearRepos}
-          className="text-xs text-zinc-500 hover:text-zinc-300 ml-1"
+          onClick={() => setRepoQuery('')}
+          className="text-xs text-zinc-500 hover:text-zinc-300"
         >
           clear
         </button>
       )}
-    </>
+    </div>
   );
 
   const markUrl = `${import.meta.env.BASE_URL}opensats-mark.svg`;
@@ -106,7 +149,13 @@ export function FilterBar({
         </span>
       </div>
 
-      <details className="group sm:hidden">
+      {filterRow}
+
+      <details
+        className="group sm:hidden"
+        open={mobileExpanded || repoQuery.length > 0}
+        onToggle={(e) => setMobileExpanded(e.currentTarget.open)}
+      >
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-center gap-1.5 text-xs text-zinc-500">
           <span className="text-zinc-600 inline-block transition-transform group-[&[open]]:rotate-90">
             {'\u25B8'}
@@ -114,13 +163,13 @@ export function FilterBar({
           <span>repos &middot; {repoCountLabel}</span>
         </summary>
         <div className="flex flex-wrap items-center gap-1.5 pt-2">
-          {renderRepoChips((r) => r.split('/').pop() ?? r)}
+          {renderRepoChips(filteredRepos, (r) => r.split('/').pop() ?? r)}
         </div>
       </details>
 
       <div className="hidden sm:flex flex-wrap items-center gap-1.5">
         <span className="text-zinc-600 text-xs mr-1">repos:</span>
-        {renderRepoChips((r) => r)}
+        {renderRepoChips(filteredRepos, (r) => r)}
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">

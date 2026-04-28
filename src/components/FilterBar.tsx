@@ -113,17 +113,21 @@ export function FilterBar({
   // Typing in the filter auto-selects matching repos; clearing the
   // input drops the param so the timeline returns to all repos. We
   // ignore the empty->empty case so URL-bound selections survive
-  // first render.
+  // first render. Debounced so URL writes (which serialize the full
+  // repo set into history.replaceState) coalesce while typing.
   const { set: setRepoSelection } = repoFilter;
   const prevQueryRef = useRef(deferredQuery);
   useEffect(() => {
-    const prev = prevQueryRef.current;
-    prevQueryRef.current = deferredQuery;
-    if (deferredQuery.length === 0) {
-      if (prev.length > 0) setRepoSelection(null);
-      return;
-    }
-    setRepoSelection(new Set(filteredRepos));
+    const handle = setTimeout(() => {
+      const prev = prevQueryRef.current;
+      prevQueryRef.current = deferredQuery;
+      if (deferredQuery.length === 0) {
+        if (prev.length > 0) setRepoSelection(null);
+        return;
+      }
+      setRepoSelection(new Set(filteredRepos));
+    }, 150);
+    return () => clearTimeout(handle);
   }, [deferredQuery, filteredRepos, setRepoSelection]);
 
   const renderRepoChips = (list: string[]) => {

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { Event } from '../types';
 import { EventRow } from './EventRow';
 
-type Props = { events: Event[] };
+type Props = { events: Event[]; onSelectRepo?: (repo: string) => void };
 
 function groupByDay(events: Event[]): Array<[string, Event[]]> {
   const groups = new Map<string, Event[]>();
@@ -18,7 +18,7 @@ function groupByDay(events: Event[]): Array<[string, Event[]]> {
   return [...groups.entries()];
 }
 
-export function Timeline({ events }: Props) {
+export function Timeline({ events, onSelectRepo }: Props) {
   const groups = useMemo(() => groupByDay(events), [events]);
 
   if (events.length === 0) {
@@ -35,7 +35,7 @@ export function Timeline({ events }: Props) {
           </div>
           <div>
             {dayEvents.map((e) => (
-              <EventRow key={e.id} event={e} />
+              <EventRow key={e.id} event={e} onSelectRepo={onSelectRepo} />
             ))}
           </div>
         </section>

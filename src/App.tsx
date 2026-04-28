@@ -70,7 +70,7 @@ export function App() {
           typeFilter={typeFilter}
         />
       </div>
-      <Timeline events={filtered} />
+      <Timeline events={filtered} onSelectRepo={(r) => repoFilter.set(new Set([r]))} />
       <footer className="px-3 py-4 text-xs text-zinc-600 border-t border-zinc-900">
         last fetched {generatedLabel} - window {data.windowDays}d - {data.repos.length} repo(s)
       </footer>

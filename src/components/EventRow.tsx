@@ -1,9 +1,9 @@
 import type { Event } from '../types';
 import { EVENT_TYPE_META } from '../eventTypes';
 
-type Props = { event: Event };
+type Props = { event: Event; onSelectRepo?: (repo: string) => void };
 
-export function EventRow({ event }: Props) {
+export function EventRow({ event, onSelectRepo }: Props) {
   const meta = EVENT_TYPE_META[event.type];
   const time = event.timestamp.slice(11, 16);
   const repoShort = event.repo.split('/').pop() ?? event.repo;
@@ -16,13 +16,15 @@ export function EventRow({ event }: Props) {
       <span className={`${meta.colorClass} shrink-0 tabular-nums truncate max-w-[8rem]`}>
         {event.shortId}
       </span>
-      <span
-        className="text-zinc-500 min-w-0 truncate max-w-[40vw] sm:max-w-[14rem]"
-        title={event.repo}
+      <button
+        type="button"
+        onClick={() => onSelectRepo?.(event.repo)}
+        className="text-zinc-500 hover:text-zinc-300 transition-colors min-w-0 truncate max-w-[40vw] sm:max-w-[14rem] text-left cursor-pointer"
+        title={`filter by ${event.repo}`}
       >
         <span className="sm:hidden">{repoShort}</span>
         <span className="hidden sm:inline">{event.repo}</span>
-      </span>
+      </button>
       <span
         className="hidden sm:inline text-emerald-300/80 shrink-0 truncate max-w-[10rem]"
         title={event.actor}

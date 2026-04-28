@@ -11,6 +11,9 @@ const CHIP_ACTIVE = 'border-zinc-500 bg-zinc-800 text-zinc-100';
 const CHIP_FOCUS_ACTIVE = 'focus:border-zinc-500 focus:bg-zinc-800 focus:text-zinc-100';
 const ROW_LABEL = 'text-zinc-600 text-xs shrink-0 w-14';
 
+const chipClass = (active: boolean) =>
+  active ? `${CHIP_BASE} ${CHIP_ACTIVE}` : `${CHIP_BASE} ${CHIP_IDLE} ${CHIP_HOVER}`;
+
 type Props = {
   repos: string[];
   funds: Record<string, string[]>;
@@ -35,12 +38,7 @@ function Chip({
   title?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={`${CHIP_BASE} ${active ? CHIP_ACTIVE : `${CHIP_IDLE} ${CHIP_HOVER}`}`}
-    >
+    <button type="button" onClick={onClick} title={title} className={chipClass(active)}>
       {children}
     </button>
   );
@@ -164,11 +162,7 @@ export function FilterBar({
         spellCheck={false}
         autoCorrect="off"
         autoCapitalize="off"
-        className={[
-          CHIP_BASE,
-          'min-w-0 flex-1 max-w-40 placeholder:text-zinc-600 focus:outline-none',
-          repoQuery ? CHIP_ACTIVE : `${CHIP_IDLE} ${CHIP_HOVER} ${CHIP_FOCUS_ACTIVE}`,
-        ].join(' ')}
+        className={`${chipClass(Boolean(repoQuery))} min-w-0 flex-1 max-w-40 placeholder:text-zinc-600 focus:outline-none ${repoQuery ? '' : CHIP_FOCUS_ACTIVE}`}
       />
       {repoQuery && <ClearButton onClick={() => setRepoQuery('')} />}
     </>

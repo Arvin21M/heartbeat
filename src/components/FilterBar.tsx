@@ -140,9 +140,13 @@ export function FilterBar({
             title="An OpenSats project"
             aria-label="OpenSats"
           >
-            <img src={markUrl} alt="" className="h-7 w-7" />
+            <img
+              src={markUrl}
+              alt=""
+              className="h-7 w-7 [filter:brightness(0)_invert(1)]"
+            />
           </a>
-          <h1 className="text-orange-500 text-base font-medium">heartbeat</h1>
+          <h1 className="text-zinc-100 text-base font-medium">heartbeat</h1>
         </div>
         <span className="text-zinc-600 text-xs">
           {shown} / {total} events

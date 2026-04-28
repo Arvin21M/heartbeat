@@ -16,32 +16,33 @@ function writeParam(key: string, value: Set<string> | null): void {
   window.history.replaceState({}, '', url);
 }
 
+/** A URL-backed multi-select control. */
+export type FilterControl = {
+  /** Selected values, or null when the URL param is absent (no filter). */
+  selected: Set<string> | null;
+  /** Toggle a value's presence in the set. */
+  toggle: (value: string) => void;
+  /** Drop the URL param entirely. */
+  clear: () => void;
+};
+
 /**
- * URL-backed multi-select. `null` means "no filter" (param absent).
- * An empty Set means "filter is active but nothing selected".
+ * URL-backed multi-select. `selected` is null when the URL param is
+ * absent (no filter); an empty Set means "filter is active but nothing
+ * is selected".
  */
-export function useUrlSet(
-  key: string,
-): [Set<string> | null, (next: Set<string> | null) => void, (value: string) => void] {
-  const [state, setState] = useState<Set<string> | null>(() => readParam(key));
+export function useUrlSet(key: string): FilterControl {
+  const [selected, setSelected] = useState<Set<string> | null>(() => readParam(key));
 
   useEffect(() => {
-    const onPop = () => setState(readParam(key));
+    const onPop = () => setSelected(readParam(key));
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [key]);
 
-  const set = useCallback(
-    (next: Set<string> | null) => {
-      writeParam(key, next);
-      setState(next);
-    },
-    [key],
-  );
-
   const toggle = useCallback(
     (value: string) => {
-      setState((prev) => {
+      setSelected((prev) => {
         const next = new Set(prev ?? []);
         if (next.has(value)) next.delete(value);
         else next.add(value);
@@ -53,5 +54,10 @@ export function useUrlSet(
     [key],
   );
 
-  return [state, set, toggle];
+  const clear = useCallback(() => {
+    writeParam(key, null);
+    setSelected(null);
+  }, [key]);
+
+  return { selected, toggle, clear };
 }

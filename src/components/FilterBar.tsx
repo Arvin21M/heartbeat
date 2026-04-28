@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { EVENT_TYPES, type EventType } from '../types';
 import { EVENT_TYPE_META } from '../eventTypes';
+import type { FilterControl } from '../lib/useUrlSet';
 
 const CHIP_BASE = 'px-2 py-1 sm:py-0.5 text-xs rounded border transition';
 const CHIP_IDLE = 'border-zinc-800 bg-transparent text-zinc-500';
@@ -12,21 +13,16 @@ type Props = {
   repos: string[];
   funds: Record<string, string[]>;
 
-  selectedFunds: Set<string> | null;
-  onToggleFund: (fund: string) => void;
-  onClearFunds: () => void;
-
-  selectedRepos: Set<string> | null;
-  onToggleRepo: (repo: string) => void;
-  onClearRepos: () => void;
-
-  selectedTypes: Set<string> | null;
-  onToggleType: (type: string) => void;
-  onClearTypes: () => void;
+  fundFilter: FilterControl;
+  repoFilter: FilterControl;
+  typeFilter: FilterControl;
 
   total: number;
   shown: number;
 };
+
+const isActive = (s: Set<string> | null) => s != null && s.size > 0;
+const clearIfActive = (f: FilterControl) => (f.selected != null ? f.clear : undefined);
 
 function Chip({
   active,
@@ -86,15 +82,9 @@ function ChipRow({
 export function FilterBar({
   repos,
   funds,
-  selectedFunds,
-  onToggleFund,
-  onClearFunds,
-  selectedRepos,
-  onToggleRepo,
-  onClearRepos,
-  selectedTypes,
-  onToggleType,
-  onClearTypes,
+  fundFilter,
+  repoFilter,
+  typeFilter,
   total,
   shown,
 }: Props) {
@@ -102,27 +92,25 @@ export function FilterBar({
   const [reposExpanded, setReposExpanded] = useState(false);
 
   const fundNames = useMemo(() => Object.keys(funds).sort(), [funds]);
-  const isFundActive = (f: string) => selectedFunds != null && selectedFunds.has(f);
-  const isRepoActive = (r: string) => selectedRepos != null && selectedRepos.has(r);
-  const isTypeActive = (t: string) => selectedTypes != null && selectedTypes.has(t);
+  const has = (s: Set<string> | null, v: string) => s != null && s.has(v);
 
   const filteredRepos = useMemo(() => {
     let list = repos;
-    if (selectedFunds && selectedFunds.size > 0) {
+    const sel = fundFilter.selected;
+    if (sel && sel.size > 0) {
       const allowed = new Set<string>();
-      for (const f of selectedFunds) for (const r of funds[f] ?? []) allowed.add(r);
+      for (const f of sel) for (const r of funds[f] ?? []) allowed.add(r);
       list = list.filter((r) => allowed.has(r));
     }
     const q = repoQuery.trim().toLowerCase();
     if (q) list = list.filter((r) => r.toLowerCase().includes(q));
     return list;
-  }, [repos, funds, selectedFunds, repoQuery]);
+  }, [repos, funds, fundFilter.selected, repoQuery]);
 
-  const fundFilterActive = selectedFunds != null && selectedFunds.size > 0;
   const repoCountLabel =
-    selectedRepos != null && selectedRepos.size > 0
-      ? `${selectedRepos.size} of ${repos.length} active`
-      : repoQuery || fundFilterActive
+    repoFilter.selected != null && repoFilter.selected.size > 0
+      ? `${repoFilter.selected.size} of ${repos.length} active`
+      : repoQuery || isActive(fundFilter.selected)
         ? `${filteredRepos.length} of ${repos.length} matching`
         : `${repos.length}`;
 
@@ -133,7 +121,12 @@ export function FilterBar({
     return list.map((r) => {
       const short = r.split('/').pop() ?? r;
       return (
-        <Chip key={r} active={isRepoActive(r)} onClick={() => onToggleRepo(r)} title={r}>
+        <Chip
+          key={r}
+          active={has(repoFilter.selected, r)}
+          onClick={() => repoFilter.toggle(r)}
+          title={r}
+        >
           <span className="sm:hidden">{short}</span>
           <span className="hidden sm:inline">{r}</span>
         </Chip>
@@ -141,7 +134,7 @@ export function FilterBar({
     });
   };
 
-  const repoClearIfActive = selectedRepos != null ? onClearRepos : undefined;
+  const repoClearIfActive = clearIfActive(repoFilter);
 
   const filterRowContent = (
     <>
@@ -188,9 +181,9 @@ export function FilterBar({
       </div>
 
       {fundNames.length > 0 && (
-        <ChipRow label="fund:" onClear={selectedFunds != null ? onClearFunds : undefined}>
+        <ChipRow label="fund:" onClear={clearIfActive(fundFilter)}>
           {fundNames.map((f) => (
-            <Chip key={f} active={isFundActive(f)} onClick={() => onToggleFund(f)}>
+            <Chip key={f} active={has(fundFilter.selected, f)} onClick={() => fundFilter.toggle(f)}>
               {f}
             </Chip>
           ))}
@@ -216,14 +209,14 @@ export function FilterBar({
         </div>
       </details>
 
-      <ChipRow label="types:" onClear={selectedTypes != null ? onClearTypes : undefined}>
+      <ChipRow label="types:" onClear={clearIfActive(typeFilter)}>
         {EVENT_TYPES.map((t: EventType) => {
           const meta = EVENT_TYPE_META[t];
           return (
             <Chip
               key={t}
-              active={isTypeActive(t)}
-              onClick={() => onToggleType(t)}
+              active={has(typeFilter.selected, t)}
+              onClick={() => typeFilter.toggle(t)}
               title={meta.label}
             >
               <span className={`${meta.colorClass} mr-1`}>{meta.sigil}</span>

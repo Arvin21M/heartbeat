@@ -9,9 +9,9 @@ export function App() {
   const [data, setData] = useState<Dataset | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedFunds, setSelectedFunds, toggleFund] = useUrlSet('funds');
-  const [selectedRepos, setSelectedRepos, toggleRepo] = useUrlSet('repos');
-  const [selectedTypes, setSelectedTypes, toggleType] = useUrlSet('types');
+  const fundFilter = useUrlSet('funds');
+  const repoFilter = useUrlSet('repos');
+  const typeFilter = useUrlSet('types');
 
   useEffect(() => {
     loadEvents()
@@ -20,21 +20,23 @@ export function App() {
   }, []);
 
   const fundReposUnion = useMemo(() => {
-    if (!data || !selectedFunds || selectedFunds.size === 0) return null;
+    const sel = fundFilter.selected;
+    if (!data || !sel || sel.size === 0) return null;
     const out = new Set<string>();
-    for (const f of selectedFunds) for (const r of data.funds[f] ?? []) out.add(r);
+    for (const f of sel) for (const r of data.funds[f] ?? []) out.add(r);
     return out;
-  }, [data, selectedFunds]);
+  }, [data, fundFilter.selected]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    return data.events.filter((e) => {
-      if (fundReposUnion && !fundReposUnion.has(e.repo)) return false;
-      if (selectedRepos && selectedRepos.size > 0 && !selectedRepos.has(e.repo)) return false;
-      if (selectedTypes && selectedTypes.size > 0 && !selectedTypes.has(e.type)) return false;
-      return true;
-    });
-  }, [data, fundReposUnion, selectedRepos, selectedTypes]);
+    const inSet = (s: Set<string> | null, v: string) => !s || s.size === 0 || s.has(v);
+    return data.events.filter(
+      (e) =>
+        (!fundReposUnion || fundReposUnion.has(e.repo)) &&
+        inSet(repoFilter.selected, e.repo) &&
+        inSet(typeFilter.selected, e.type),
+    );
+  }, [data, fundReposUnion, repoFilter.selected, typeFilter.selected]);
 
   if (error) {
     return (
@@ -63,15 +65,9 @@ export function App() {
         <FilterBar
           repos={data.repos}
           funds={data.funds}
-          selectedFunds={selectedFunds}
-          onToggleFund={toggleFund}
-          onClearFunds={() => setSelectedFunds(null)}
-          selectedRepos={selectedRepos}
-          onToggleRepo={toggleRepo}
-          onClearRepos={() => setSelectedRepos(null)}
-          selectedTypes={selectedTypes}
-          onToggleType={toggleType}
-          onClearTypes={() => setSelectedTypes(null)}
+          fundFilter={fundFilter}
+          repoFilter={repoFilter}
+          typeFilter={typeFilter}
           total={data.events.length}
           shown={filtered.length}
         />

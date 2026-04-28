@@ -8,6 +8,7 @@ const CHIP_IDLE = 'border-zinc-800 bg-transparent text-zinc-500';
 const CHIP_HOVER = 'hover:text-zinc-300 hover:border-zinc-700';
 const CHIP_ACTIVE = 'border-zinc-500 bg-zinc-800 text-zinc-100';
 const CHIP_FOCUS_ACTIVE = 'focus:border-zinc-500 focus:bg-zinc-800 focus:text-zinc-100';
+const ROW_LABEL = 'text-zinc-600 text-xs shrink-0 w-14';
 
 type Props = {
   repos: string[];
@@ -69,7 +70,7 @@ function ChipRow({
 }) {
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className ?? ''}`}>
-      <span className="text-zinc-600 text-xs mr-1">{label}</span>
+      <span className={ROW_LABEL}>{label}</span>
       {children}
       {onClear && <ClearButton onClick={onClear} />}
     </div>
@@ -157,7 +158,7 @@ export function FilterBar({
 
   const filterRowContent = (
     <>
-      <span className="text-zinc-600 text-xs mr-1 shrink-0">filter:</span>
+      <span className={ROW_LABEL}>filter:</span>
       <input
         type="text"
         value={repoQuery}
@@ -218,7 +219,7 @@ export function FilterBar({
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-zinc-600 text-xs mr-1">repos:</span>
+          <span className={ROW_LABEL}>repos:</span>
           {!repoQuery && (
             <Chip
               active={false}

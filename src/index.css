@@ -5,6 +5,10 @@
     ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
+html {
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
@@ -13,6 +17,10 @@ body,
 
 body {
   @apply bg-zinc-950 text-zinc-200 font-mono antialiased;
+}
+
+::selection {
+  @apply bg-orange-500/30 text-zinc-50;
 }
 
 a {

@@ -9,6 +9,7 @@ export function App() {
   const [data, setData] = useState<Dataset | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [selectedFunds, setSelectedFunds, toggleFund] = useUrlSet('funds');
   const [selectedRepos, setSelectedRepos, toggleRepo] = useUrlSet('repos');
   const [selectedTypes, setSelectedTypes, toggleType] = useUrlSet('types');
 
@@ -18,14 +19,22 @@ export function App() {
       .catch((err) => setError((err as Error).message));
   }, []);
 
+  const fundReposUnion = useMemo(() => {
+    if (!data || !selectedFunds || selectedFunds.size === 0) return null;
+    const out = new Set<string>();
+    for (const f of selectedFunds) for (const r of data.funds[f] ?? []) out.add(r);
+    return out;
+  }, [data, selectedFunds]);
+
   const filtered = useMemo(() => {
     if (!data) return [];
     return data.events.filter((e) => {
+      if (fundReposUnion && !fundReposUnion.has(e.repo)) return false;
       if (selectedRepos && selectedRepos.size > 0 && !selectedRepos.has(e.repo)) return false;
       if (selectedTypes && selectedTypes.size > 0 && !selectedTypes.has(e.type)) return false;
       return true;
     });
-  }, [data, selectedRepos, selectedTypes]);
+  }, [data, fundReposUnion, selectedRepos, selectedTypes]);
 
   if (error) {
     return (
@@ -53,6 +62,10 @@ export function App() {
       <div className="sm:sticky sm:top-0 z-10">
         <FilterBar
           repos={data.repos}
+          funds={data.funds}
+          selectedFunds={selectedFunds}
+          onToggleFund={toggleFund}
+          onClearFunds={() => setSelectedFunds(null)}
           selectedRepos={selectedRepos}
           onToggleRepo={toggleRepo}
           onClearRepos={() => setSelectedRepos(null)}

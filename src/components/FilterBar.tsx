@@ -4,6 +4,12 @@ import { EVENT_TYPE_META } from '../eventTypes';
 
 type Props = {
   repos: string[];
+  funds: Record<string, string[]>;
+
+  selectedFunds: Set<string> | null;
+  onToggleFund: (fund: string) => void;
+  onClearFunds: () => void;
+
   selectedRepos: Set<string> | null;
   onToggleRepo: (repo: string) => void;
   onClearRepos: () => void;
@@ -49,6 +55,10 @@ function Chip({
 
 export function FilterBar({
   repos,
+  funds,
+  selectedFunds,
+  onToggleFund,
+  onClearFunds,
   selectedRepos,
   onToggleRepo,
   onClearRepos,
@@ -61,19 +71,28 @@ export function FilterBar({
   const [repoQuery, setRepoQuery] = useState('');
   const [mobileExpanded, setMobileExpanded] = useState(false);
 
+  const fundNames = useMemo(() => Object.keys(funds).sort(), [funds]);
+  const isFundActive = (f: string) => selectedFunds != null && selectedFunds.has(f);
   const isRepoActive = (r: string) => selectedRepos != null && selectedRepos.has(r);
   const isTypeActive = (t: string) => selectedTypes != null && selectedTypes.has(t);
 
   const filteredRepos = useMemo(() => {
+    let list = repos;
+    if (selectedFunds && selectedFunds.size > 0) {
+      const allowed = new Set<string>();
+      for (const f of selectedFunds) for (const r of funds[f] ?? []) allowed.add(r);
+      list = list.filter((r) => allowed.has(r));
+    }
     const q = repoQuery.trim().toLowerCase();
-    if (!q) return repos;
-    return repos.filter((r) => r.toLowerCase().includes(q));
-  }, [repos, repoQuery]);
+    if (q) list = list.filter((r) => r.toLowerCase().includes(q));
+    return list;
+  }, [repos, funds, selectedFunds, repoQuery]);
 
+  const fundFilterActive = selectedFunds != null && selectedFunds.size > 0;
   const repoCountLabel =
     selectedRepos != null && selectedRepos.size > 0
       ? `${selectedRepos.size} of ${repos.length} active`
-      : repoQuery
+      : repoQuery || fundFilterActive
         ? `${filteredRepos.length} of ${repos.length} matching`
         : `${repos.length}`;
 
@@ -161,6 +180,26 @@ export function FilterBar({
           {shown} / {total} events
         </span>
       </div>
+
+      {fundNames.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-zinc-600 text-xs mr-1">fund:</span>
+          {fundNames.map((f) => (
+            <Chip key={f} active={isFundActive(f)} onClick={() => onToggleFund(f)}>
+              {f}
+            </Chip>
+          ))}
+          {selectedFunds != null && (
+            <button
+              type="button"
+              onClick={onClearFunds}
+              className="text-xs text-zinc-500 hover:text-zinc-300 ml-1"
+            >
+              clear
+            </button>
+          )}
+        </div>
+      )}
 
       <details
         className="group sm:hidden"

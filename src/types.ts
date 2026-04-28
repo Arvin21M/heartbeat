@@ -29,11 +29,13 @@ export const DatasetSchema = z.object({
   generatedAt: z.string(),
   windowDays: z.number(),
   repos: z.array(z.string()),
+  funds: z.record(z.string(), z.array(z.string())).default({}),
   events: z.array(EventSchema),
 });
 export type Dataset = z.infer<typeof DatasetSchema>;
 
 export const ConfigSchema = z.object({
+  fund: z.string().optional(),
   repos: z.array(z.string().regex(/^[^/\s]+\/[^/\s]+$/, 'expected "owner/name"')),
 });
 export type Config = z.infer<typeof ConfigSchema>;

@@ -6,11 +6,15 @@ import yaml from 'js-yaml';
 import {
   ConfigSchema,
   DatasetSchema,
-  type Config,
   type Dataset,
   type Event,
   type EventType,
 } from '../src/types';
+
+type LoadedConfig = {
+  repos: string[];
+  funds: Record<string, string[]>;
+};
 
 const WINDOW_DAYS = 90;
 const COMMITS_PER_REPO = 100;
@@ -275,19 +279,40 @@ function releaseToEvents(repo: string, n: ReleaseNode): Event[] {
   ];
 }
 
-async function loadConfig(): Promise<Config> {
+function fundFromFilename(file: string): string {
+  const m = file.match(/^repos\.(.+)\.ya?ml$/i);
+  if (!m) return 'General';
+  const slug = m[1];
+  return slug.charAt(0).toUpperCase() + slug.slice(1);
+}
+
+async function loadConfig(): Promise<LoadedConfig> {
   const files = (await readdir(ROOT)).filter((f) => CONFIG_FILE_PATTERN.test(f)).sort();
   if (files.length === 0) {
     throw new Error('No repos.yml or repos.<group>.yml files found at the project root.');
   }
   const all = new Set<string>();
+  const funds: Record<string, Set<string>> = {};
   for (const file of files) {
     const raw = await readFile(resolve(ROOT, file), 'utf8');
     const parsed = ConfigSchema.parse(yaml.load(raw));
-    console.log(`  ${file}: ${parsed.repos.length} repos`);
-    for (const r of parsed.repos) all.add(r);
+    const fundName = parsed.fund ?? fundFromFilename(file);
+    console.log(`  ${file}: ${parsed.repos.length} repos -> "${fundName}"`);
+    const bucket = (funds[fundName] ??= new Set<string>());
+    for (const r of parsed.repos) {
+      all.add(r);
+      bucket.add(r);
+    }
   }
-  return { repos: [...all].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())) };
+  return {
+    repos: [...all].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
+    funds: Object.fromEntries(
+      Object.entries(funds).map(([k, v]) => [
+        k,
+        [...v].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())),
+      ]),
+    ),
+  };
 }
 
 function getToken(): string {
@@ -348,6 +373,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     windowDays: WINDOW_DAYS,
     repos: config.repos,
+    funds: config.funds,
     events: all,
   };
   DatasetSchema.parse(dataset);

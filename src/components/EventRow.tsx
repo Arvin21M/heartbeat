@@ -67,9 +67,12 @@ function EventRowImpl({ event, onSelectRepo, onSelectActor }: Props) {
         href={event.url}
         target="_blank"
         rel="noreferrer noopener"
-        className="text-zinc-200 truncate min-w-0 basis-full pl-6 sm:basis-0 sm:flex-1 sm:pl-0"
+        className="text-zinc-500 sm:text-zinc-200 truncate min-w-0 basis-full pl-2 sm:basis-0 sm:flex-1 sm:pl-0"
         title={event.title}
       >
+        <span className="sm:hidden text-zinc-700 mr-1" aria-hidden="true">
+          └─
+        </span>
         {event.title}
       </a>
     </div>

@@ -21,7 +21,6 @@ type Props = {
   shown: number;
 };
 
-const isActive = (s: Set<string> | null) => s != null && s.size > 0;
 const clearIfActive = (f: FilterControl) => (f.selected != null ? f.clear : undefined);
 
 function Chip({
@@ -107,12 +106,7 @@ export function FilterBar({
     return list;
   }, [repos, funds, fundFilter.selected, repoQuery]);
 
-  const repoCountLabel =
-    repoFilter.selected != null && repoFilter.selected.size > 0
-      ? `${repoFilter.selected.size} of ${repos.length} active`
-      : repoQuery || isActive(fundFilter.selected)
-        ? `${filteredRepos.length} of ${repos.length} matching`
-        : `${repos.length}`;
+  const showRepoChips = reposExpanded || repoQuery.length > 0;
 
   const renderRepoChips = (list: string[]) => {
     if (list.length === 0) {
@@ -192,33 +186,26 @@ export function FilterBar({
 
       <div className="flex items-center gap-1.5">{filterRowContent}</div>
 
-      <details
-        className="group"
-        open={reposExpanded || repoQuery.length > 0}
-        onToggle={(e) => setReposExpanded(e.currentTarget.open)}
-      >
-        <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-center gap-1.5 text-xs text-zinc-500">
-          <span className="text-zinc-600 inline-block transition-transform group-[&[open]]:rotate-90">
-            {'\u25B8'}
-          </span>
-          <span>repos &middot; {repoCountLabel}</span>
-          {repoClearIfActive && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                repoClearIfActive();
-              }}
-              className="text-xs text-zinc-500 hover:text-zinc-300 ml-1"
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-zinc-600 text-xs mr-1">repos:</span>
+          {!repoQuery && (
+            <Chip
+              active={false}
+              onClick={() => setReposExpanded((v) => !v)}
+              title={`${repos.length} repos`}
             >
-              clear
-            </button>
+              {reposExpanded ? 'hide' : 'too many to show'}
+            </Chip>
           )}
-        </summary>
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 sm:max-h-[40vh] sm:overflow-y-auto">
-          {renderRepoChips(filteredRepos)}
+          {repoClearIfActive && <ClearButton onClick={repoClearIfActive} />}
         </div>
-      </details>
+        {showRepoChips && (
+          <div className="flex flex-wrap items-center gap-1.5 sm:max-h-[40vh] sm:overflow-y-auto">
+            {renderRepoChips(filteredRepos)}
+          </div>
+        )}
+      </div>
 
       <ChipRow label="types:" onClear={clearIfActive(typeFilter)}>
         {EVENT_TYPES.map((t: EventType) => {

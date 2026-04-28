@@ -250,9 +250,7 @@ function releaseToEvents(repo: string, n: ReleaseNode): Event[] {
 
 function fundFromFilename(file: string): string {
   const m = file.match(/^repos\.(.+)\.ya?ml$/i);
-  if (!m) return 'General';
-  const slug = m[1];
-  return slug.charAt(0).toUpperCase() + slug.slice(1);
+  return m ? m[1].toLowerCase() : 'general';
 }
 
 async function loadConfig(): Promise<LoadedConfig> {

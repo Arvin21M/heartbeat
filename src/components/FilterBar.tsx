@@ -195,7 +195,7 @@ export function FilterBar({
               onClick={() => setReposExpanded((v) => !v)}
               title={`${repos.length} repos`}
             >
-              {reposExpanded ? 'hide' : 'too many to show'}
+              {reposExpanded ? 'hide' : `show all ${filteredRepos.length}`}
             </Chip>
           )}
           {repoClearIfActive && <ClearButton onClick={repoClearIfActive} />}

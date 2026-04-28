@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENT_TYPES, type EventType } from '../types';
 import { EVENT_TYPE_META } from '../eventTypes';
 import type { FilterControl } from '../lib/useUrlSet';
@@ -87,6 +87,10 @@ export function FilterBar({
   const selectedActors = actorFilter.selected;
   const [repoQuery, setRepoQuery] = useState('');
   const [reposExpanded, setReposExpanded] = useState(false);
+  // The deferred query lets the input update at urgent priority while
+  // the (heavier) filtered chip list and downstream effects re-render
+  // at low priority. Keeps typing snappy on big repo lists.
+  const deferredQuery = useDeferredValue(repoQuery);
 
   const fundNames = useMemo(() => Object.keys(funds).sort(), [funds]);
   const has = (s: Set<string> | null, v: string) => s != null && s.has(v);
@@ -99,10 +103,10 @@ export function FilterBar({
       for (const f of sel) for (const r of funds[f] ?? []) allowed.add(r);
       list = list.filter((r) => allowed.has(r));
     }
-    const q = repoQuery.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase();
     if (q) list = list.filter((r) => r.toLowerCase().includes(q));
     return list;
-  }, [repos, funds, fundFilter.selected, repoQuery]);
+  }, [repos, funds, fundFilter.selected, deferredQuery]);
 
   const showRepoChips = reposExpanded || repoQuery.length > 0;
 
@@ -111,16 +115,16 @@ export function FilterBar({
   // ignore the empty->empty case so URL-bound selections survive
   // first render.
   const { set: setRepoSelection } = repoFilter;
-  const prevQueryRef = useRef(repoQuery);
+  const prevQueryRef = useRef(deferredQuery);
   useEffect(() => {
     const prev = prevQueryRef.current;
-    prevQueryRef.current = repoQuery;
-    if (repoQuery.length === 0) {
+    prevQueryRef.current = deferredQuery;
+    if (deferredQuery.length === 0) {
       if (prev.length > 0) setRepoSelection(null);
       return;
     }
     setRepoSelection(new Set(filteredRepos));
-  }, [repoQuery, filteredRepos, setRepoSelection]);
+  }, [deferredQuery, filteredRepos, setRepoSelection]);
 
   const renderRepoChips = (list: string[]) => {
     if (list.length === 0) {

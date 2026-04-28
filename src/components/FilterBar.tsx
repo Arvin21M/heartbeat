@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENT_TYPES, type EventType } from '../types';
 import { EVENT_TYPE_META } from '../eventTypes';
 import type { FilterControl } from '../lib/useUrlSet';
+import { RepoLabel } from './RepoLabel';
 
 const CHIP_BASE = 'px-2 py-1 sm:py-0.5 text-xs rounded border transition';
 const CHIP_IDLE = 'border-zinc-800 bg-transparent text-zinc-500';
@@ -135,20 +136,16 @@ export function FilterBar({
     if (list.length === 0) {
       return <span className="text-xs text-zinc-600">no matching repos</span>;
     }
-    return list.map((r) => {
-      const short = r.split('/').pop() ?? r;
-      return (
-        <Chip
-          key={r}
-          active={has(repoFilter.selected, r)}
-          onClick={() => repoFilter.toggle(r)}
-          title={r}
-        >
-          <span className="sm:hidden">{short}</span>
-          <span className="hidden sm:inline">{r}</span>
-        </Chip>
-      );
-    });
+    return list.map((r) => (
+      <Chip
+        key={r}
+        active={has(repoFilter.selected, r)}
+        onClick={() => repoFilter.toggle(r)}
+        title={r}
+      >
+        <RepoLabel repo={r} />
+      </Chip>
+    ));
   };
 
   const repoClearIfActive = clearIfActive(repoFilter);

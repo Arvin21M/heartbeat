@@ -68,8 +68,6 @@ export function App() {
           fundFilter={fundFilter}
           repoFilter={repoFilter}
           typeFilter={typeFilter}
-          total={data.events.length}
-          shown={filtered.length}
         />
       </div>
       <Timeline events={filtered} />

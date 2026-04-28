@@ -16,9 +16,6 @@ type Props = {
   fundFilter: FilterControl;
   repoFilter: FilterControl;
   typeFilter: FilterControl;
-
-  total: number;
-  shown: number;
 };
 
 const clearIfActive = (f: FilterControl) => (f.selected != null ? f.clear : undefined);
@@ -78,15 +75,7 @@ function ChipRow({
   );
 }
 
-export function FilterBar({
-  repos,
-  funds,
-  fundFilter,
-  repoFilter,
-  typeFilter,
-  total,
-  shown,
-}: Props) {
+export function FilterBar({ repos, funds, fundFilter, repoFilter, typeFilter }: Props) {
   const [repoQuery, setRepoQuery] = useState('');
   const [reposExpanded, setReposExpanded] = useState(false);
 
@@ -185,9 +174,14 @@ export function FilterBar({
           </a>
           <h1 className="text-zinc-100 text-base font-medium">heartbeat</h1>
         </div>
-        <span className="text-zinc-600 text-xs">
-          {shown} / {total} events
-        </span>
+        <a
+          href="https://opensats.org"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-zinc-600 hover:text-zinc-300 text-xs transition-colors"
+        >
+          by OpenSats
+        </a>
       </div>
 
       {fundNames.length > 0 && (

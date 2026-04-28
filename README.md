@@ -72,7 +72,7 @@ The fetcher is configured at the top of `scripts/fetch.ts`:
 3. (Optional) For private repos, create a PAT with `repo` scope and add it as
    a repository secret named `HEARTBEAT_TOKEN`. Public-only setups can rely
    on the auto-provided `GITHUB_TOKEN`.
-4. Push to `main` (or run the *Build & Deploy* workflow manually). It also
+4. Push to `master` (or run the *Build & Deploy* workflow manually). It also
    re-runs every 6 hours via cron.
 
 The site will be available at

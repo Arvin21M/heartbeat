@@ -50,7 +50,7 @@ export function App() {
 
   return (
     <div className="min-h-full">
-      <div className="sticky top-0 z-10">
+      <div className="sm:sticky sm:top-0 z-10">
         <FilterBar
           repos={data.repos}
           selectedRepos={selectedRepos}

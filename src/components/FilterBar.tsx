@@ -34,7 +34,7 @@ function Chip({
       onClick={onClick}
       title={title}
       className={[
-        'px-2 py-0.5 text-xs rounded border transition',
+        'px-2 py-1 sm:py-0.5 text-xs rounded border transition',
         active
           ? 'border-zinc-500 bg-zinc-800 text-zinc-100'
           : 'border-zinc-800 bg-transparent text-zinc-500 hover:text-zinc-300 hover:border-zinc-700',

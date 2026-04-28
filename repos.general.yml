@@ -41,8 +41,6 @@ repos:
   - BlakeKaufman/BlitzWallet
   - BlitzWallet/BlitzWallet
   - BlixtWallet/noah
-  - block/bitcoin-augur
-  - block/bitcoin-augur-reference
   - braidpool/braidpool
   - btcpayserver/btcpayserver
   - callebtc/bitchat-observer

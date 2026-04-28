@@ -7,6 +7,31 @@ type Props = {
   onSelectActor?: (actor: string) => void;
 };
 
+const FILTER_BUTTON_BASE = 'transition-colors truncate text-left cursor-pointer';
+
+function FilterButton({
+  value,
+  onSelect,
+  className,
+  children,
+}: {
+  value: string;
+  onSelect?: (value: string) => void;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect?.(value)}
+      title={`filter by ${value}`}
+      className={`${FILTER_BUTTON_BASE} ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function EventRow({ event, onSelectRepo, onSelectActor }: Props) {
   const meta = EVENT_TYPE_META[event.type];
   const time = event.timestamp.slice(11, 16);
@@ -20,23 +45,21 @@ export function EventRow({ event, onSelectRepo, onSelectActor }: Props) {
       <span className={`${meta.colorClass} shrink-0 tabular-nums truncate max-w-[8rem]`}>
         {event.shortId}
       </span>
-      <button
-        type="button"
-        onClick={() => onSelectRepo?.(event.repo)}
-        className="text-zinc-500 hover:text-zinc-300 transition-colors min-w-0 truncate max-w-[40vw] sm:max-w-[14rem] text-left cursor-pointer"
-        title={`filter by ${event.repo}`}
+      <FilterButton
+        value={event.repo}
+        onSelect={onSelectRepo}
+        className="text-zinc-500 hover:text-zinc-300 min-w-0 max-w-[40vw] sm:max-w-[14rem]"
       >
         <span className="sm:hidden">{repoShort}</span>
         <span className="hidden sm:inline">{event.repo}</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onSelectActor?.(event.actor)}
-        className="hidden sm:inline text-emerald-300/80 hover:text-emerald-200 transition-colors shrink-0 truncate max-w-[10rem] text-left cursor-pointer"
-        title={`filter by ${event.actor}`}
+      </FilterButton>
+      <FilterButton
+        value={event.actor}
+        onSelect={onSelectActor}
+        className="hidden sm:inline text-emerald-300/80 hover:text-emerald-200 shrink-0 max-w-[10rem]"
       >
         {event.actor}
-      </button>
+      </FilterButton>
       <a
         href={event.url}
         target="_blank"

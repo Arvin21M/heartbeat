@@ -53,7 +53,7 @@ function EventRowImpl({ event, onSelectRepo, onSelectActor }: Props) {
       <FilterButton
         value={event.repo}
         onSelect={onSelectRepo}
-        className="text-zinc-500 hover:text-zinc-300 min-w-0 max-w-[40vw] sm:max-w-[14rem]"
+        className="text-zinc-300 sm:text-zinc-500 hover:text-zinc-300 min-w-0 max-w-[40vw] sm:max-w-[14rem]"
       >
         <span className="sm:hidden">{repoShort}</span>
         <span className="hidden sm:inline">{event.repo}</span>

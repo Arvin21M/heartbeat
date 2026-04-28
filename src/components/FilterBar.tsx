@@ -120,8 +120,8 @@ export function FilterBar({
     );
   };
 
-  const filterRow = (
-    <div className="flex items-center gap-1.5">
+  const filterRowContent = (
+    <>
       <span className="text-zinc-600 text-xs mr-1 shrink-0">filter:</span>
       <input
         type="text"
@@ -151,7 +151,7 @@ export function FilterBar({
           clear
         </button>
       )}
-    </div>
+    </>
   );
 
   const markUrl = `${import.meta.env.BASE_URL}opensats-mark.svg`;
@@ -203,7 +203,7 @@ export function FilterBar({
 
       <details
         className="group sm:hidden"
-        open={mobileExpanded || repoQuery.length > 0}
+        open={mobileExpanded}
         onToggle={(e) => setMobileExpanded(e.currentTarget.open)}
       >
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-center gap-1.5 text-xs text-zinc-500">
@@ -215,6 +215,7 @@ export function FilterBar({
         <div className="flex flex-wrap items-center gap-1.5 pt-2">
           {renderRepoChips(filteredRepos, (r) => r.split('/').pop() ?? r)}
         </div>
+        <div className="flex items-center gap-1.5 pt-2">{filterRowContent}</div>
       </details>
 
       <div className="hidden sm:flex flex-wrap items-center gap-1.5">
@@ -222,7 +223,7 @@ export function FilterBar({
         {renderRepoChips(filteredRepos, (r) => r)}
       </div>
 
-      {filterRow}
+      <div className="hidden sm:flex items-center gap-1.5">{filterRowContent}</div>
 
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-zinc-600 text-xs mr-1">types:</span>

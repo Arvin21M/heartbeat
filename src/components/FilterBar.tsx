@@ -121,7 +121,6 @@ export function FilterBar({
   useEffect(() => {
     const handle = setTimeout(() => {
       const prev = prevQueryRef.current;
-      if (prev === deferredQuery) return;
       prevQueryRef.current = deferredQuery;
       if (deferredQuery.length === 0) {
         if (prev.length > 0) setRepoSelection(null);

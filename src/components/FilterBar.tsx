@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENT_TYPES, type EventType } from '../types';
 import { EVENT_TYPE_META } from '../eventTypes';
 import type { FilterControl } from '../lib/useUrlSet';
+import { useUrlString } from '../lib/useUrlString';
 import { RepoLabel } from './RepoLabel';
 
 const CHIP_BASE = 'px-2 py-1 sm:py-0.5 text-xs rounded border transition';
@@ -85,7 +86,7 @@ export function FilterBar({
   actorFilter,
 }: Props) {
   const selectedActors = actorFilter.selected;
-  const [repoQuery, setRepoQuery] = useState('');
+  const [repoQuery, setRepoQuery] = useUrlString('q');
   const [reposExpanded, setReposExpanded] = useState(false);
   // The deferred query lets the input update at urgent priority while
   // the (heavier) filtered chip list and downstream effects re-render
@@ -120,6 +121,7 @@ export function FilterBar({
   useEffect(() => {
     const handle = setTimeout(() => {
       const prev = prevQueryRef.current;
+      if (prev === deferredQuery) return;
       prevQueryRef.current = deferredQuery;
       if (deferredQuery.length === 0) {
         if (prev.length > 0) setRepoSelection(null);

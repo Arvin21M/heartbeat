@@ -16,17 +16,45 @@ type LoadedConfig = {
   funds: Record<string, string[]>;
 };
 
-const WINDOW_DAYS = 90;
-const COMMITS_PER_REPO = 100;
-const PRS_PER_REPO = 50;
-const ISSUES_PER_REPO = 50;
-const RELEASES_PER_REPO = 20;
+// --- Configurable knobs (env vars override defaults) ------------------------
+//
+// HEARTBEAT_WINDOW_DAYS         How many days of history to include (default 90).
+// HEARTBEAT_*_PAGE_SIZE         Nodes per GraphQL page for each connection.
+// HEARTBEAT_*_MAX_PER_REPO      Hard cap on total nodes per repo (safety net).
+//
+// The real terminator is the cutoff date; the *_MAX_PER_REPO values exist only
+// so a runaway repo cannot exhaust the GraphQL budget. Set them high.
+
+function intFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new Error(`${name} must be a positive number, got: ${raw}`);
+  }
+  return Math.floor(n);
+}
+
+const WINDOW_DAYS = intFromEnv('HEARTBEAT_WINDOW_DAYS', 90);
+
+const COMMITS_PAGE_SIZE = intFromEnv('HEARTBEAT_COMMITS_PAGE_SIZE', 100);
+const PRS_PAGE_SIZE = intFromEnv('HEARTBEAT_PRS_PAGE_SIZE', 50);
+const ISSUES_PAGE_SIZE = intFromEnv('HEARTBEAT_ISSUES_PAGE_SIZE', 50);
+const RELEASES_PAGE_SIZE = intFromEnv('HEARTBEAT_RELEASES_PAGE_SIZE', 20);
+
+const COMMITS_MAX_PER_REPO = intFromEnv('HEARTBEAT_COMMITS_MAX_PER_REPO', 5000);
+const PRS_MAX_PER_REPO = intFromEnv('HEARTBEAT_PRS_MAX_PER_REPO', 1000);
+const ISSUES_MAX_PER_REPO = intFromEnv('HEARTBEAT_ISSUES_MAX_PER_REPO', 1000);
+const RELEASES_MAX_PER_REPO = intFromEnv('HEARTBEAT_RELEASES_MAX_PER_REPO', 200);
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG_FILE_PATTERN = /^repos(\..+)?\.ya?ml$/i;
 const OUT_PATH = resolve(ROOT, 'public/data/events.json');
 
+// --- GraphQL response shapes ------------------------------------------------
+
 type Actor = { login: string } | null;
+
 type CommitNode = {
   oid: string;
   abbreviatedOid: string;
@@ -35,25 +63,30 @@ type CommitNode = {
   url: string;
   author: { user: Actor; name: string | null } | null;
 };
+
 type PrNode = {
   number: number;
   title: string;
   url: string;
   createdAt: string;
+  updatedAt: string;
   mergedAt: string | null;
   closedAt: string | null;
   merged: boolean;
   author: Actor;
   mergedBy: Actor;
 };
+
 type IssueNode = {
   number: number;
   title: string;
   url: string;
   createdAt: string;
+  updatedAt: string;
   closedAt: string | null;
   author: Actor;
 };
+
 type ReleaseNode = {
   tagName: string;
   name: string | null;
@@ -62,31 +95,25 @@ type ReleaseNode = {
   createdAt: string;
   author: Actor;
 };
-type RepoQueryResult = {
-  repository: {
-    nameWithOwner: string;
-    defaultBranchRef: { target: { history: { nodes: CommitNode[] } } } | null;
-    pullRequests: { nodes: PrNode[] };
-    issues: { nodes: IssueNode[] };
-    releases: { nodes: ReleaseNode[] };
-  } | null;
-};
 
-const REPO_QUERY = /* GraphQL */ `
-  query Repo(
+type PageInfo = { hasNextPage: boolean; endCursor: string | null };
+
+// --- GraphQL queries: one per connection so each can paginate independently -
+
+const COMMITS_QUERY = /* GraphQL */ `
+  query Commits(
     $owner: String!
     $name: String!
-    $commits: Int!
-    $prs: Int!
-    $issues: Int!
-    $releases: Int!
+    $first: Int!
+    $after: String
+    $since: GitTimestamp!
   ) {
     repository(owner: $owner, name: $name) {
-      nameWithOwner
       defaultBranchRef {
         target {
           ... on Commit {
-            history(first: $commits) {
+            history(first: $first, after: $after, since: $since) {
+              pageInfo { hasNextPage endCursor }
               nodes {
                 oid
                 abbreviatedOid
@@ -95,59 +122,77 @@ const REPO_QUERY = /* GraphQL */ `
                 url
                 author {
                   name
-                  user {
-                    login
-                  }
+                  user { login }
                 }
               }
             }
           }
         }
       }
-      pullRequests(first: $prs, orderBy: { field: UPDATED_AT, direction: DESC }) {
+    }
+  }
+`;
+
+const PRS_QUERY = /* GraphQL */ `
+  query Prs($owner: String!, $name: String!, $first: Int!, $after: String) {
+    repository(owner: $owner, name: $name) {
+      pullRequests(first: $first, after: $after, orderBy: { field: UPDATED_AT, direction: DESC }) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           number
           title
           url
           createdAt
+          updatedAt
           mergedAt
           closedAt
           merged
-          author {
-            login
-          }
-          mergedBy {
-            login
-          }
+          author { login }
+          mergedBy { login }
         }
       }
-      issues(first: $issues, orderBy: { field: UPDATED_AT, direction: DESC }) {
+    }
+  }
+`;
+
+const ISSUES_QUERY = /* GraphQL */ `
+  query Issues($owner: String!, $name: String!, $first: Int!, $after: String) {
+    repository(owner: $owner, name: $name) {
+      issues(first: $first, after: $after, orderBy: { field: UPDATED_AT, direction: DESC }) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           number
           title
           url
           createdAt
+          updatedAt
           closedAt
-          author {
-            login
-          }
+          author { login }
         }
       }
-      releases(first: $releases, orderBy: { field: CREATED_AT, direction: DESC }) {
+    }
+  }
+`;
+
+const RELEASES_QUERY = /* GraphQL */ `
+  query Releases($owner: String!, $name: String!, $first: Int!, $after: String) {
+    repository(owner: $owner, name: $name) {
+      releases(first: $first, after: $after, orderBy: { field: CREATED_AT, direction: DESC }) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           tagName
           name
           url
           publishedAt
           createdAt
-          author {
-            login
-          }
+          author { login }
         }
       }
     }
   }
 `;
+
+// --- Event shaping (unchanged from original) --------------------------------
 
 type EventInput = {
   repo: string;
@@ -290,27 +335,143 @@ function getToken(): string {
   return token;
 }
 
-async function fetchRepo(client: typeof graphql, ownerName: string): Promise<Event[]> {
+// --- Pagination -------------------------------------------------------------
+
+type GraphqlClient = typeof graphql;
+
+type Connection<T> = { pageInfo: PageInfo; nodes: T[] };
+
+async function paginate<T extends { updatedAt?: string; createdAt: string }>(
+  client: GraphqlClient,
+  query: string,
+  owner: string,
+  name: string,
+  pageSize: number,
+  maxNodes: number,
+  cutoffMs: number,
+  pickConnection: (data: unknown) => Connection<T> | null,
+): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | null = null;
+  while (all.length < maxNodes) {
+    const data: unknown = await client(query, {
+      owner,
+      name,
+      first: Math.min(pageSize, maxNodes - all.length),
+      after: cursor,
+    });
+    const conn = pickConnection(data);
+    if (!conn) break;
+    all.push(...conn.nodes);
+    // Items are sorted desc by updatedAt (or createdAt for releases). Once the
+    // last item on a page falls before the cutoff, no later page contains
+    // anything in-window — stop.
+    const last = conn.nodes[conn.nodes.length - 1];
+    if (last) {
+      const lastTs = last.updatedAt ?? last.createdAt;
+      if (Date.parse(lastTs) < cutoffMs) break;
+    }
+    if (!conn.pageInfo.hasNextPage) break;
+    cursor = conn.pageInfo.endCursor;
+  }
+  return all;
+}
+
+async function fetchCommits(
+  client: GraphqlClient,
+  owner: string,
+  name: string,
+  sinceISO: string,
+): Promise<{ commits: CommitNode[]; repoFound: boolean }> {
+  const all: CommitNode[] = [];
+  let cursor: string | null = null;
+  let repoFound = true;
+  while (all.length < COMMITS_MAX_PER_REPO) {
+    const data = await client<{
+      repository: {
+        defaultBranchRef: {
+          target: { history: Connection<CommitNode> } | null;
+        } | null;
+      } | null;
+    }>(COMMITS_QUERY, {
+      owner,
+      name,
+      first: Math.min(COMMITS_PAGE_SIZE, COMMITS_MAX_PER_REPO - all.length),
+      after: cursor,
+      since: sinceISO,
+    });
+    if (data.repository == null) {
+      repoFound = false;
+      break;
+    }
+    const history = data.repository.defaultBranchRef?.target?.history;
+    if (!history) break; // empty repo or no default branch
+    all.push(...history.nodes);
+    if (!history.pageInfo.hasNextPage) break;
+    cursor = history.pageInfo.endCursor;
+  }
+  return { commits: all, repoFound };
+}
+
+async function fetchRepo(
+  client: GraphqlClient,
+  ownerName: string,
+  cutoffMs: number,
+): Promise<Event[]> {
   const [owner, name] = ownerName.split('/');
-  const data = await client<RepoQueryResult>(REPO_QUERY, {
-    owner,
-    name,
-    commits: COMMITS_PER_REPO,
-    prs: PRS_PER_REPO,
-    issues: ISSUES_PER_REPO,
-    releases: RELEASES_PER_REPO,
-  });
-  const repo = data.repository;
-  if (!repo) {
+  const sinceISO = new Date(cutoffMs).toISOString();
+
+  // Commits double as the existence probe.
+  let commitsResult: { commits: CommitNode[]; repoFound: boolean };
+  try {
+    commitsResult = await fetchCommits(client, owner, name, sinceISO);
+  } catch (err) {
+    console.warn(`! ${ownerName}: commits fetch failed: ${(err as Error).message}`);
+    return [];
+  }
+  if (!commitsResult.repoFound) {
     console.warn(`! ${ownerName}: not found or inaccessible, skipping`);
     return [];
   }
-  const commits = repo.defaultBranchRef?.target.history.nodes ?? [];
+
+  const [prs, issues, releases] = await Promise.all([
+    paginate<PrNode>(
+      client,
+      PRS_QUERY,
+      owner,
+      name,
+      PRS_PAGE_SIZE,
+      PRS_MAX_PER_REPO,
+      cutoffMs,
+      (data) => (data as { repository: { pullRequests: Connection<PrNode> } | null }).repository?.pullRequests ?? null,
+    ),
+    paginate<IssueNode>(
+      client,
+      ISSUES_QUERY,
+      owner,
+      name,
+      ISSUES_PAGE_SIZE,
+      ISSUES_MAX_PER_REPO,
+      cutoffMs,
+      (data) => (data as { repository: { issues: Connection<IssueNode> } | null }).repository?.issues ?? null,
+    ),
+    paginate<ReleaseNode>(
+      client,
+      RELEASES_QUERY,
+      owner,
+      name,
+      RELEASES_PAGE_SIZE,
+      RELEASES_MAX_PER_REPO,
+      cutoffMs,
+      (data) => (data as { repository: { releases: Connection<ReleaseNode> } | null }).repository?.releases ?? null,
+    ),
+  ]);
+
   return [
-    ...commits.flatMap((n) => commitToEvents(ownerName, n)),
-    ...repo.pullRequests.nodes.flatMap((n) => prToEvents(ownerName, n)),
-    ...repo.issues.nodes.flatMap((n) => issueToEvents(ownerName, n)),
-    ...repo.releases.nodes.flatMap((n) => releaseToEvents(ownerName, n)),
+    ...commitsResult.commits.flatMap((n) => commitToEvents(ownerName, n)),
+    ...prs.flatMap((n) => prToEvents(ownerName, n)),
+    ...issues.flatMap((n) => issueToEvents(ownerName, n)),
+    ...releases.flatMap((n) => releaseToEvents(ownerName, n)),
   ];
 }
 
@@ -318,15 +479,15 @@ async function main() {
   const config = await loadConfig();
   const token = getToken();
   const client = graphql.defaults({ headers: { authorization: `token ${token}` } });
-  const cutoff = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const cutoffMs = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
   console.log(`Fetching ${config.repos.length} repo(s), window=${WINDOW_DAYS}d`);
 
   const all: Event[] = [];
   for (const repo of config.repos) {
     try {
-      const events = await fetchRepo(client, repo);
-      const recent = events.filter((e) => Date.parse(e.timestamp) >= cutoff);
+      const events = await fetchRepo(client, repo, cutoffMs);
+      const recent = events.filter((e) => Date.parse(e.timestamp) >= cutoffMs);
       console.log(`  ${repo}: ${recent.length} events (of ${events.length} fetched)`);
       all.push(...recent);
     } catch (err) {
@@ -344,7 +505,6 @@ async function main() {
     events: all,
   };
   DatasetSchema.parse(dataset);
-
   await mkdir(dirname(OUT_PATH), { recursive: true });
   await writeFile(OUT_PATH, JSON.stringify(dataset, null, 2) + '\n');
   console.log(`Wrote ${all.length} events -> ${OUT_PATH}`);

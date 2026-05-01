@@ -17,13 +17,6 @@ type LoadedConfig = {
 };
 
 // --- Configurable knobs (env vars override defaults) ------------------------
-//
-// HEARTBEAT_WINDOW_DAYS         How many days of history to include (default 90).
-// HEARTBEAT_*_PAGE_SIZE         Nodes per GraphQL page for each connection.
-// HEARTBEAT_*_MAX_PER_REPO      Hard cap on total nodes per repo (safety net).
-//
-// The real terminator is the cutoff date; the *_MAX_PER_REPO values exist only
-// so a runaway repo cannot exhaust the GraphQL budget. Set them high.
 
 function intFromEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -97,6 +90,18 @@ type ReleaseNode = {
 };
 
 type PageInfo = { hasNextPage: boolean; endCursor: string | null };
+
+type Connection<T> = { pageInfo: PageInfo; nodes: T[] };
+
+type CommitsHistoryResponse = {
+  repository: {
+    defaultBranchRef: {
+      target: {
+        history: Connection<CommitNode>;
+      } | null;
+    } | null;
+  } | null;
+};
 
 // --- GraphQL queries: one per connection so each can paginate independently -
 
@@ -339,8 +344,6 @@ function getToken(): string {
 
 type GraphqlClient = typeof graphql;
 
-type Connection<T> = { pageInfo: PageInfo; nodes: T[] };
-
 async function paginate<T extends { updatedAt?: string; createdAt: string }>(
   client: GraphqlClient,
   query: string,
@@ -349,12 +352,12 @@ async function paginate<T extends { updatedAt?: string; createdAt: string }>(
   pageSize: number,
   maxNodes: number,
   cutoffMs: number,
-  pickConnection: (data: unknown) => Connection<T> | null,
+  pickConnection: (data: any) => Connection<T> | null,
 ): Promise<T[]> {
   const all: T[] = [];
   let cursor: string | null = null;
   while (all.length < maxNodes) {
-    const data: unknown = await client(query, {
+    const data = await client<any>(query, {
       owner,
       name,
       first: Math.min(pageSize, maxNodes - all.length),
@@ -368,149 +371,4 @@ async function paginate<T extends { updatedAt?: string; createdAt: string }>(
     // anything in-window — stop.
     const last = conn.nodes[conn.nodes.length - 1];
     if (last) {
-      const lastTs = last.updatedAt ?? last.createdAt;
-      if (Date.parse(lastTs) < cutoffMs) break;
-    }
-    if (!conn.pageInfo.hasNextPage) break;
-    cursor = conn.pageInfo.endCursor;
-  }
-  return all;
-}
-
-async function fetchCommits(
-  client: GraphqlClient,
-  owner: string,
-  name: string,
-  sinceISO: string,
-): Promise<{ commits: CommitNode[]; repoFound: boolean }> {
-  const all: CommitNode[] = [];
-  let cursor: string | null = null;
-  let repoFound = true;
-  while (all.length < COMMITS_MAX_PER_REPO) {
-    const data = await client<{
-      repository: {
-        defaultBranchRef: {
-          target: { history: Connection<CommitNode> } | null;
-        } | null;
-      } | null;
-    }>(COMMITS_QUERY, {
-      owner,
-      name,
-      first: Math.min(COMMITS_PAGE_SIZE, COMMITS_MAX_PER_REPO - all.length),
-      after: cursor,
-      since: sinceISO,
-    });
-    if (data.repository == null) {
-      repoFound = false;
-      break;
-    }
-    const history = data.repository.defaultBranchRef?.target?.history;
-    if (!history) break; // empty repo or no default branch
-    all.push(...history.nodes);
-    if (!history.pageInfo.hasNextPage) break;
-    cursor = history.pageInfo.endCursor;
-  }
-  return { commits: all, repoFound };
-}
-
-async function fetchRepo(
-  client: GraphqlClient,
-  ownerName: string,
-  cutoffMs: number,
-): Promise<Event[]> {
-  const [owner, name] = ownerName.split('/');
-  const sinceISO = new Date(cutoffMs).toISOString();
-
-  // Commits double as the existence probe.
-  let commitsResult: { commits: CommitNode[]; repoFound: boolean };
-  try {
-    commitsResult = await fetchCommits(client, owner, name, sinceISO);
-  } catch (err) {
-    console.warn(`! ${ownerName}: commits fetch failed: ${(err as Error).message}`);
-    return [];
-  }
-  if (!commitsResult.repoFound) {
-    console.warn(`! ${ownerName}: not found or inaccessible, skipping`);
-    return [];
-  }
-
-  const [prs, issues, releases] = await Promise.all([
-    paginate<PrNode>(
-      client,
-      PRS_QUERY,
-      owner,
-      name,
-      PRS_PAGE_SIZE,
-      PRS_MAX_PER_REPO,
-      cutoffMs,
-      (data) => (data as { repository: { pullRequests: Connection<PrNode> } | null }).repository?.pullRequests ?? null,
-    ),
-    paginate<IssueNode>(
-      client,
-      ISSUES_QUERY,
-      owner,
-      name,
-      ISSUES_PAGE_SIZE,
-      ISSUES_MAX_PER_REPO,
-      cutoffMs,
-      (data) => (data as { repository: { issues: Connection<IssueNode> } | null }).repository?.issues ?? null,
-    ),
-    paginate<ReleaseNode>(
-      client,
-      RELEASES_QUERY,
-      owner,
-      name,
-      RELEASES_PAGE_SIZE,
-      RELEASES_MAX_PER_REPO,
-      cutoffMs,
-      (data) => (data as { repository: { releases: Connection<ReleaseNode> } | null }).repository?.releases ?? null,
-    ),
-  ]);
-
-  return [
-    ...commitsResult.commits.flatMap((n) => commitToEvents(ownerName, n)),
-    ...prs.flatMap((n) => prToEvents(ownerName, n)),
-    ...issues.flatMap((n) => issueToEvents(ownerName, n)),
-    ...releases.flatMap((n) => releaseToEvents(ownerName, n)),
-  ];
-}
-
-async function main() {
-  const config = await loadConfig();
-  const token = getToken();
-  const client = graphql.defaults({ headers: { authorization: `token ${token}` } });
-  const cutoffMs = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
-
-  console.log(`Fetching ${config.repos.length} repo(s), window=${WINDOW_DAYS}d`);
-
-  const all: Event[] = [];
-  for (const repo of config.repos) {
-    try {
-      const events = await fetchRepo(client, repo, cutoffMs);
-      const recent = events.filter((e) => Date.parse(e.timestamp) >= cutoffMs);
-      console.log(`  ${repo}: ${recent.length} events (of ${events.length} fetched)`);
-      all.push(...recent);
-    } catch (err) {
-      console.error(`! ${repo}: ${(err as Error).message}`);
-    }
-  }
-
-  all.sort((a, b) => (a.timestamp < b.timestamp ? 1 : a.timestamp > b.timestamp ? -1 : 0));
-
-  const dataset: Dataset = {
-    generatedAt: new Date().toISOString(),
-    windowDays: WINDOW_DAYS,
-    repos: config.repos,
-    funds: config.funds,
-    events: all,
-  };
-  DatasetSchema.parse(dataset);
-  await mkdir(dirname(OUT_PATH), { recursive: true });
-  await writeFile(OUT_PATH, JSON.stringify(dataset, null, 2) + '\n');
-  console.log(`Wrote ${all.length} events -> ${OUT_PATH}`);
-}
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+      const lastTs = last.updatedAt ?? last.createdA

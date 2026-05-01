@@ -34,12 +34,58 @@ repos:
   - owner/repo-2
 ```
 
-Knobs (time window, page sizes) live at the top of
-[`scripts/fetch.ts`](scripts/fetch.ts).
+### Knobs (env vars)
+
+All defaults match the original behavior. Override at fetch time to change the
+data the build produces.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `HEARTBEAT_WINDOW_DAYS` | `90` | How many days of history to include. Set to `365` for an annual lookback. |
+| `HEARTBEAT_COMMITS_PAGE_SIZE` | `100` | GraphQL page size for commits. |
+| `HEARTBEAT_PRS_PAGE_SIZE` | `50` | GraphQL page size for pull requests. |
+| `HEARTBEAT_ISSUES_PAGE_SIZE` | `50` | GraphQL page size for issues. |
+| `HEARTBEAT_RELEASES_PAGE_SIZE` | `20` | GraphQL page size for releases. |
+| `HEARTBEAT_COMMITS_MAX_PER_REPO` | `5000` | Hard cap on total commits per repo (safety net). |
+| `HEARTBEAT_PRS_MAX_PER_REPO` | `1000` | Hard cap on total PRs per repo. |
+| `HEARTBEAT_ISSUES_MAX_PER_REPO` | `1000` | Hard cap on total issues per repo. |
+| `HEARTBEAT_RELEASES_MAX_PER_REPO` | `200` | Hard cap on total releases per repo. |
+
+The fetcher paginates each connection until it crosses the window cutoff or
+hits the per-repo max — whichever comes first. The maxes exist only as a
+runaway-protection budget; the real terminator is `HEARTBEAT_WINDOW_DAYS`.
 
 ## Deploy
 
-Built for Vercel. Set `GITHUB_TOKEN` as an env var; `vercel-build` runs
-`npm run fetch && npm run build`. For periodic refreshes, save a Vercel
-Deploy Hook URL as the `VERCEL_DEPLOY_HOOK_URL` repo secret and the included
-[`refresh.yml`](.github/workflows/refresh.yml) workflow pings it every 6 hours.
+### Vercel (default)
+
+`vercel-build` runs `npm run fetch && npm run build`. Set the following in
+**Vercel → Project → Settings → Environment Variables**, scoped to all
+environments:
+
+- `GITHUB_TOKEN` — any GitHub PAT; no scopes needed for public repos.
+- `HEARTBEAT_WINDOW_DAYS` *(optional)* — e.g. `365` for an annual window.
+  Omit to keep the 90-day default.
+
+For periodic refreshes, save a Vercel Deploy Hook URL as the
+`VERCEL_DEPLOY_HOOK_URL` repo secret and the included
+[`refresh.yml`](./.github/workflows/refresh.yml) workflow pings it every
+6 hours.
+
+### GitHub Actions / Pages / static host
+
+If you'd rather build the dataset in CI and serve the static output from
+anywhere (Pages, Cloudflare Pages, S3, a VPS), run the fetch in a workflow:
+
+```yaml
+- name: Fetch events
+  run: npm run fetch
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    HEARTBEAT_WINDOW_DAYS: '365'
+- name: Build
+  run: npm run build
+```
+
+The built site is the contents of `dist/` and `public/data/events.json` is
+embedded at fetch time.

@@ -371,4 +371,142 @@ async function paginate<T extends { updatedAt?: string; createdAt: string }>(
     // anything in-window — stop.
     const last = conn.nodes[conn.nodes.length - 1];
     if (last) {
-      const lastTs = last.updatedAt ?? last.createdA
+      const lastTs = last.updatedAt ?? last.createdAt;
+      if (Date.parse(lastTs) < cutoffMs) break;
+    }
+    if (!conn.pageInfo.hasNextPage) break;
+    cursor = conn.pageInfo.endCursor;
+  }
+  return all;
+}
+
+async function fetchCommits(
+  client: GraphqlClient,
+  owner: string,
+  name: string,
+  sinceISO: string,
+): Promise<{ commits: CommitNode[]; repoFound: boolean }> {
+  const all: CommitNode[] = [];
+  let cursor: string | null = null;
+  let repoFound = true;
+  while (all.length < COMMITS_MAX_PER_REPO) {
+    const data = await client<CommitsHistoryResponse>(COMMITS_QUERY, {
+      owner,
+      name,
+      first: Math.min(COMMITS_PAGE_SIZE, COMMITS_MAX_PER_REPO - all.length),
+      after: cursor,
+      since: sinceISO,
+    });
+    if (data.repository == null) {
+      repoFound = false;
+      break;
+    }
+    const history = data.repository.defaultBranchRef?.target?.history;
+    if (!history) break;
+    all.push(...history.nodes);
+    if (!history.pageInfo.hasNextPage) break;
+    cursor = history.pageInfo.endCursor;
+  }
+  return { commits: all, repoFound };
+}
+
+async function fetchRepo(
+  client: GraphqlClient,
+  ownerName: string,
+  cutoffMs: number,
+): Promise<Event[]> {
+  const [owner, name] = ownerName.split('/');
+  const sinceISO = new Date(cutoffMs).toISOString();
+
+  let commitsResult: { commits: CommitNode[]; repoFound: boolean };
+  try {
+    commitsResult = await fetchCommits(client, owner, name, sinceISO);
+  } catch (err) {
+    console.warn(`! ${ownerName}: commits fetch failed: ${(err as Error).message}`);
+    return [];
+  }
+  if (!commitsResult.repoFound) {
+    console.warn(`! ${ownerName}: not found or inaccessible, skipping`);
+    return [];
+  }
+
+  const [prs, issues, releases] = await Promise.all([
+    paginate<PrNode>(
+      client,
+      PRS_QUERY,
+      owner,
+      name,
+      PRS_PAGE_SIZE,
+      PRS_MAX_PER_REPO,
+      cutoffMs,
+      (data) => data?.repository?.pullRequests ?? null,
+    ),
+    paginate<IssueNode>(
+      client,
+      ISSUES_QUERY,
+      owner,
+      name,
+      ISSUES_PAGE_SIZE,
+      ISSUES_MAX_PER_REPO,
+      cutoffMs,
+      (data) => data?.repository?.issues ?? null,
+    ),
+    paginate<ReleaseNode>(
+      client,
+      RELEASES_QUERY,
+      owner,
+      name,
+      RELEASES_PAGE_SIZE,
+      RELEASES_MAX_PER_REPO,
+      cutoffMs,
+      (data) => data?.repository?.releases ?? null,
+    ),
+  ]);
+
+  return [
+    ...commitsResult.commits.flatMap((n) => commitToEvents(ownerName, n)),
+    ...prs.flatMap((n) => prToEvents(ownerName, n)),
+    ...issues.flatMap((n) => issueToEvents(ownerName, n)),
+    ...releases.flatMap((n) => releaseToEvents(ownerName, n)),
+  ];
+}
+
+async function main() {
+  const config = await loadConfig();
+  const token = getToken();
+  const client = graphql.defaults({ headers: { authorization: `token ${token}` } });
+  const cutoffMs = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+  console.log(`Fetching ${config.repos.length} repo(s), window=${WINDOW_DAYS}d`);
+
+  const all: Event[] = [];
+  for (const repo of config.repos) {
+    try {
+      const events = await fetchRepo(client, repo, cutoffMs);
+      const recent = events.filter((e) => Date.parse(e.timestamp) >= cutoffMs);
+      console.log(`  ${repo}: ${recent.length} events (of ${events.length} fetched)`);
+      all.push(...recent);
+    } catch (err) {
+      console.error(`! ${repo}: ${(err as Error).message}`);
+    }
+  }
+
+  all.sort((a, b) => (a.timestamp < b.timestamp ? 1 : a.timestamp > b.timestamp ? -1 : 0));
+
+  const dataset: Dataset = {
+    generatedAt: new Date().toISOString(),
+    windowDays: WINDOW_DAYS,
+    repos: config.repos,
+    funds: config.funds,
+    events: all,
+  };
+  DatasetSchema.parse(dataset);
+  await mkdir(dirname(OUT_PATH), { recursive: true });
+  await writeFile(OUT_PATH, JSON.stringify(dataset, null, 2) + '\n');
+  console.log(`Wrote ${all.length} events -> ${OUT_PATH}`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

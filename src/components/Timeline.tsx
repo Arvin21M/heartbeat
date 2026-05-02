@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import type { Event } from '../types';
 import { EventRow } from './EventRow';
@@ -52,6 +52,17 @@ export function Timeline({ events, onSelectRepo, onSelectActor }: Props) {
       return item.kind === 'header' ? `h:${item.day}` : `e:${item.event.id}`;
     },
   });
+
+  // When the events list changes (e.g. window/repo/dev filter changes), throw
+  // away every cached row measurement so the virtualizer recomputes the total
+  // scroll height from the current items rather than reusing stale heights
+  // measured against the previous list. Without this, switching the time
+  // window from the top of the page leaves the page-height (and therefore the
+  // scrollbar) stuck at its previous size — even though the footer count
+  // updates correctly.
+  useEffect(() => {
+    virtualizer.measure();
+  }, [events, virtualizer]);
 
   if (events.length === 0) {
     return <div className="text-zinc-500 px-2 py-8">No events match the current filters.</div>;

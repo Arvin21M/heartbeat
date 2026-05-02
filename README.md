@@ -21,11 +21,28 @@ The full dataset is published alongside the site:
 
 - **Live JSON:** <https://arvin21m.github.io/heartbeat365/data/events.json>
 - **Refresh cadence:** every 6 hours via scheduled GitHub Actions run.
-- **Format:** see [`src/types.ts`](./src/types.ts) for the `Dataset` schema.
+- **Format:** see `src/types.ts` for the Dataset schema.
 - **Historical snapshots:** none. Each refresh overwrites the previous file.
-  Past datasets can still be downloaded as build artifacts from old runs in
-  the [Actions tab](https://github.com/Arvin21M/heartbeat365/actions) for
-  ~90 days after each run.
+  Past datasets can still be downloaded as build artifacts from old runs in the
+  Actions tab for ~90 days after each run.
+
+### Filtering the dataset
+
+The full file contains every event across all tracked repos for the past 365
+days, which can be large. If you want a smaller subset — for analysis,
+archiving, or uploading to a tool with a file-size limit — there's a
+browser-based filter:
+
+- **Filter tool:** <https://arvin21m.github.io/heartbeat365/filter.html>
+
+Open the URL in any browser. It loads the latest dataset automatically and lets
+you narrow down by fund, repos, developers, time window, and event types. The
+preview shows the resulting file size in real time, and the download button
+gives you a `.json` file (named `events-filtered-<timestamp>.json`) with the
+same schema as the source — plus a `filters` field recording what was applied.
+
+All filtering happens client-side in your browser — nothing is uploaded
+anywhere.
 
 ## Filters
 

@@ -46,6 +46,16 @@ export function Timeline({ events, onSelectRepo, onSelectActor }: Props) {
     estimateSize: (index) => (items[index]?.kind === 'header' ? 28 : 24),
     overscan: 20,
     scrollMargin: parentOffset,
+    // Use content-based keys so cached row measurements stay tied to the item
+    // they were measured for. With the default index-based key, changing the
+    // window/filter would shift items to new indexes but reuse stale heights,
+    // making the total scroll size wrong (e.g. 30d filter still showing 365d
+    // worth of space).
+    getItemKey: (index) => {
+      const item = items[index];
+      if (!item) return index;
+      return item.kind === 'header' ? `h:${item.day}` : `e:${item.event.id}`;
+    },
   });
 
   if (events.length === 0) {

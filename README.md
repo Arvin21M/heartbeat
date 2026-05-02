@@ -15,6 +15,38 @@ extended to support a configurable lookback window (default 365 days here vs.
 90 upstream) with paginated GraphQL queries so longer windows don't silently
 drop events. See the [Knobs](#knobs-env-vars) section for full config.
 
+## Data
+
+The full dataset is published alongside the site:
+
+- **Live JSON:** <https://arvin21m.github.io/heartbeat365/data/events.json>
+- **Refresh cadence:** every 6 hours via scheduled GitHub Actions run.
+- **Format:** see [`src/types.ts`](./src/types.ts) for the `Dataset` schema.
+- **Historical snapshots:** none. Each refresh overwrites the previous file.
+  Past datasets can still be downloaded as build artifacts from old runs in
+  the [Actions tab](https://github.com/Arvin21M/heartbeat365/actions) for
+  ~90 days after each run.
+
+## Filters
+
+All filters work client-side on the already-loaded dataset and serialize to
+the URL so views are shareable.
+
+| Filter | UI | URL param | Match |
+| --- | --- | --- | --- |
+| Window | `30d / 60d / 90d / 180d / 365d` chips | `?window=N` | last *N* days |
+| Fund | `general / nostr / ops` chips | `?funds=...` | repos in that fund bucket |
+| Repo name | `filter:` text input | `?q=...` | substring across repo paths |
+| Repo (explicit) | repo chip selection | `?repos=...` | exact repo match |
+| Author | `author:` text input | `?author=...` | **exact** GitHub username (event actor) |
+| Event type | `types:` chips | `?types=...` | commit / PR / issue / release subset |
+| Dev (chip) | repo-row chip click | `?devs=...` | exact (auto-set when you click a name) |
+
+`?q=` is the substring search used since upstream — useful for "find any repo
+or person mentioning X." `?author=` is the strict mode added in this fork —
+useful for single-grantee impact reports where you want only that developer's
+events and nothing they happened to be cc'd in.
+
 ## Develop
 
 Requires Node 22+.
@@ -60,7 +92,20 @@ runaway-protection budget; the real terminator is `HEARTBEAT_WINDOW_DAYS`.
 
 ## Deploy
 
-### Vercel (default)
+### GitHub Pages (this fork)
+
+[`build.yml`](./.github/workflows/build.yml) runs `npm run fetch` then
+`vite build`, then deploys `dist/` to GitHub Pages. Triggers:
+
+- every push to `master`
+- every 6 hours via cron
+- manually via the **Run workflow** button on the Actions tab
+
+Required repo secret: `HEARTBEAT_PAT` — a fine-grained PAT with
+public-repo read access. Token lifetime must be ≤366 days for orgs that
+restrict long-lived tokens (e.g. OpenSats).
+
+### Vercel (upstream default)
 
 `vercel-build` runs `npm run fetch && npm run build`. Set the following in
 **Vercel → Project → Settings → Environment Variables**, scoped to all
@@ -97,7 +142,9 @@ embedded at fetch time.
 
 Built on [OpenSats/heartbeat](https://github.com/OpenSats/heartbeat) by
 the OpenSats team. This fork extends the upstream project with a longer
-default lookback window and paginated fetching.
+default lookback window, paginated fetching, virtualized rendering, a
+window selector, and a strict author filter — optimized for annual
+impact-report research.
 
 ## License
 

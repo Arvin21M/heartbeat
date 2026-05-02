@@ -1,9 +1,9 @@
-# heartbeat+
+# heartbeat365
 
 Static activity dashboard for a set of GitHub repos. Renders commits, PRs,
 issues, and releases as a `git log --oneline`-style timeline.
 
-Live at https://arvin21m.github.io/heartbeat/
+Live at https://arvin21m.github.io/heartbeat365/
 
 A GitHub Action fetches data via the GitHub GraphQL API at build time and
 writes `public/data/events.json`. The browser never talks to GitHub directly,

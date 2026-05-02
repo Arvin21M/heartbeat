@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>heartbeat · filter for Claude Projects</title>
+  <title>heartbeat · events filter</title>
   <style>
     :root {
       color-scheme: dark;
@@ -157,9 +157,9 @@
   </style>
 </head>
 <body>
-  <h1>heartbeat · filter for Claude Projects</h1>
+  <h1>heartbeat · events filter</h1>
   <div class="subtitle">
-    Trim the events.json file down so you can upload it to a Claude Project (30 MB limit).
+    Trim the events.json file down to a manageable subset for analysis or upload (30 MB target).
   </div>
 
   <div class="panel">
@@ -224,8 +224,9 @@
       <button id="clearBtn" class="secondary">Clear filters</button>
     </div>
     <div class="help" style="margin-top: 12px;">
-      Claude Projects has a 30 MB per-file limit. If size is over 30 MB, narrow the filters
-      (shorter time window, fewer repos, fewer event types) and re-check the preview.
+      Many file-upload tools cap individual files at around 30 MB. If size is over the target,
+      narrow the filters (shorter time window, fewer repos, fewer event types) and re-check the
+      preview.
     </div>
   </div>
 

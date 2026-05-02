@@ -5,10 +5,39 @@ import { Timeline } from './components/Timeline';
 import { FilterBar } from './components/FilterBar';
 import type { Dataset } from './types';
 
+const WINDOW_OPTIONS = [30, 60, 90, 180, 365] as const;
+const DEFAULT_WINDOW = 365;
+
+function useUrlWindow(): [number, (n: number) => void] {
+  const read = () => {
+    if (typeof window === 'undefined') return DEFAULT_WINDOW;
+    const raw = new URLSearchParams(window.location.search).get('window');
+    const n = raw ? Number(raw) : NaN;
+    return (WINDOW_OPTIONS as readonly number[]).includes(n) ? n : DEFAULT_WINDOW;
+  };
+  const [value, setValue] = useState(read);
+  useEffect(() => {
+    const onPop = () => setValue(read());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const set = useCallback((n: number) => {
+    const params = new URLSearchParams(window.location.search);
+    if (n === DEFAULT_WINDOW) params.delete('window');
+    else params.set('window', String(n));
+    const qs = params.toString();
+    const url = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+    window.history.replaceState(null, '', url);
+    setValue(n);
+  }, []);
+  return [value, set];
+}
+
 export function App() {
   const [data, setData] = useState<Dataset | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [windowDays, setWindowDays] = useUrlWindow();
   const fundFilter = useUrlSet('funds');
   const repoFilter = useUrlSet('repos');
   const typeFilter = useUrlSet('types');
@@ -43,17 +72,23 @@ export function App() {
     return out;
   }, [data, fundFilter.selected]);
 
+  const cutoffMs = useMemo(
+    () => Date.now() - windowDays * 24 * 60 * 60 * 1000,
+    [windowDays],
+  );
+
   const filtered = useMemo(() => {
     if (!data) return [];
     const inSet = (s: Set<string> | null, v: string) => !s || s.size === 0 || s.has(v);
     return data.events.filter(
       (e) =>
+        Date.parse(e.timestamp) >= cutoffMs &&
         (!fundReposUnion || fundReposUnion.has(e.repo)) &&
         inSet(repoFilter.selected, e.repo) &&
         inSet(typeFilter.selected, e.type) &&
         inSet(actorFilter.selected, e.actor),
     );
-  }, [data, fundReposUnion, repoFilter.selected, typeFilter.selected, actorFilter.selected]);
+  }, [data, cutoffMs, fundReposUnion, repoFilter.selected, typeFilter.selected, actorFilter.selected]);
 
   const { set: setRepoSelection } = repoFilter;
   const { set: setActorSelection } = actorFilter;
@@ -87,7 +122,7 @@ export function App() {
     ? 'never'
     : generated.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
 
-  const totals = data.events.reduce<Record<string, number>>((acc, e) => {
+  const totals = filtered.reduce<Record<string, number>>((acc, e) => {
     acc[e.type] = (acc[e.type] ?? 0) + 1;
     return acc;
   }, {});
@@ -107,6 +142,35 @@ export function App() {
   return (
     <div className="min-h-full">
       <div ref={filterBarRef} className="sm:sticky sm:top-0 z-10">
+        <div className="bg-zinc-950 border-b border-zinc-900 px-2 py-2 flex flex-wrap gap-1 items-center text-xs">
+          <span className="text-zinc-500 mr-1">window:</span>
+          {WINDOW_OPTIONS.map((n) => {
+            const disabled = n > data.windowDays;
+            const active = n === windowDays;
+            return (
+              <button
+                key={n}
+                type="button"
+                disabled={disabled}
+                onClick={() => setWindowDays(n)}
+                title={
+                  disabled
+                    ? `Only ${data.windowDays} days of data are built. Set HEARTBEAT_WINDOW_DAYS=${n} (or higher) and rebuild to enable.`
+                    : `Show last ${n} days`
+                }
+                className={
+                  active
+                    ? 'px-2 py-0.5 rounded bg-zinc-700 text-zinc-100'
+                    : disabled
+                      ? 'px-2 py-0.5 rounded text-zinc-700 cursor-not-allowed'
+                      : 'px-2 py-0.5 rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                }
+              >
+                {n}d
+              </button>
+            );
+          })}
+        </div>
         <FilterBar
           repos={data.repos}
           funds={data.funds}
@@ -119,10 +183,12 @@ export function App() {
       <Timeline events={filtered} onSelectRepo={onSelectRepo} onSelectActor={onSelectActor} />
       <footer className="px-3 py-4 text-xs text-zinc-600 border-t border-zinc-900 space-y-1">
         <div>
-          {fmt(data.events.length)} events: {statParts.join(', ')}
+          {fmt(filtered.length)} of {fmt(data.events.length)} events shown
+          {statParts.length > 0 ? ': ' + statParts.join(', ') : ''}
         </div>
         <div>
-          last fetched {generatedLabel} - window {data.windowDays}d - {data.repos.length} repo(s)
+          last fetched {generatedLabel} - window {windowDays}d (built {data.windowDays}d) -{' '}
+          {data.repos.length} repo(s)
         </div>
         <div>
           repo missing?{' '}

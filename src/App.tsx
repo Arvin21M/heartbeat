@@ -142,35 +142,6 @@ export function App() {
   return (
     <div className="min-h-full">
       <div ref={filterBarRef} className="sm:sticky sm:top-0 z-10">
-        <div className="bg-zinc-950 border-b border-zinc-900 px-2 py-2 flex flex-wrap gap-1 items-center text-xs">
-          <span className="text-zinc-500 mr-1">window:</span>
-          {WINDOW_OPTIONS.map((n) => {
-            const disabled = n > data.windowDays;
-            const active = n === windowDays;
-            return (
-              <button
-                key={n}
-                type="button"
-                disabled={disabled}
-                onClick={() => setWindowDays(n)}
-                title={
-                  disabled
-                    ? `Only ${data.windowDays} days of data are built. Set HEARTBEAT_WINDOW_DAYS=${n} (or higher) and rebuild to enable.`
-                    : `Show last ${n} days`
-                }
-                className={
-                  active
-                    ? 'px-2 py-0.5 rounded bg-zinc-700 text-zinc-100'
-                    : disabled
-                      ? 'px-2 py-0.5 rounded text-zinc-700 cursor-not-allowed'
-                      : 'px-2 py-0.5 rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
-                }
-              >
-                {n}d
-              </button>
-            );
-          })}
-        </div>
         <FilterBar
           repos={data.repos}
           funds={data.funds}
@@ -178,6 +149,10 @@ export function App() {
           repoFilter={repoFilter}
           typeFilter={typeFilter}
           actorFilter={actorFilter}
+          windowOptions={WINDOW_OPTIONS}
+          windowDays={windowDays}
+          setWindowDays={setWindowDays}
+          builtWindowDays={data.windowDays}
         />
       </div>
       <Timeline events={filtered} onSelectRepo={onSelectRepo} onSelectActor={onSelectActor} />

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadEvents } from './lib/loadEvents';
 import { useUrlSet } from './lib/useUrlSet';
+import { useUrlString } from './lib/useUrlString';
 import { Timeline } from './components/Timeline';
 import { FilterBar } from './components/FilterBar';
 import type { Dataset } from './types';
@@ -42,6 +43,7 @@ export function App() {
   const repoFilter = useUrlSet('repos');
   const typeFilter = useUrlSet('types');
   const actorFilter = useUrlSet('devs');
+  const [authorQuery, setAuthorQuery] = useUrlString('author');
 
   useEffect(() => {
     loadEvents()
@@ -77,6 +79,8 @@ export function App() {
     [windowDays],
   );
 
+  const authorExact = authorQuery.trim();
+
   const filtered = useMemo(() => {
     if (!data) return [];
     const inSet = (s: Set<string> | null, v: string) => !s || s.size === 0 || s.has(v);
@@ -86,9 +90,18 @@ export function App() {
         (!fundReposUnion || fundReposUnion.has(e.repo)) &&
         inSet(repoFilter.selected, e.repo) &&
         inSet(typeFilter.selected, e.type) &&
-        inSet(actorFilter.selected, e.actor),
+        inSet(actorFilter.selected, e.actor) &&
+        (authorExact === '' || e.actor === authorExact),
     );
-  }, [data, cutoffMs, fundReposUnion, repoFilter.selected, typeFilter.selected, actorFilter.selected]);
+  }, [
+    data,
+    cutoffMs,
+    fundReposUnion,
+    repoFilter.selected,
+    typeFilter.selected,
+    actorFilter.selected,
+    authorExact,
+  ]);
 
   const { set: setRepoSelection } = repoFilter;
   const { set: setActorSelection } = actorFilter;
@@ -153,6 +166,8 @@ export function App() {
           windowDays={windowDays}
           setWindowDays={setWindowDays}
           builtWindowDays={data.windowDays}
+          authorQuery={authorQuery}
+          setAuthorQuery={setAuthorQuery}
         />
       </div>
       <Timeline events={filtered} onSelectRepo={onSelectRepo} onSelectActor={onSelectActor} />

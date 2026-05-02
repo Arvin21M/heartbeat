@@ -9,11 +9,17 @@ const CHIP_BASE = 'px-2 py-1 sm:py-0.5 text-xs rounded border transition';
 const CHIP_IDLE = 'border-zinc-800 bg-transparent text-zinc-500';
 const CHIP_HOVER = 'hover:text-zinc-300 hover:border-zinc-700';
 const CHIP_ACTIVE = 'border-zinc-500 bg-zinc-800 text-zinc-100';
+const CHIP_DISABLED = 'border-zinc-900 bg-transparent text-zinc-700 cursor-not-allowed';
 const CHIP_FOCUS_ACTIVE = 'focus:border-zinc-500 focus:bg-zinc-800 focus:text-zinc-100';
 const ROW_LABEL = 'text-zinc-600 text-xs shrink-0 w-14';
 
 const chipClass = (active: boolean) =>
   active ? `${CHIP_BASE} ${CHIP_ACTIVE}` : `${CHIP_BASE} ${CHIP_IDLE} ${CHIP_HOVER}`;
+
+const windowChipClass = (active: boolean, disabled: boolean) => {
+  if (disabled) return `${CHIP_BASE} ${CHIP_DISABLED}`;
+  return chipClass(active);
+};
 
 type Props = {
   repos: string[];
@@ -23,6 +29,11 @@ type Props = {
   repoFilter: FilterControl;
   typeFilter: FilterControl;
   actorFilter: FilterControl;
+
+  windowOptions: readonly number[];
+  windowDays: number;
+  setWindowDays: (n: number) => void;
+  builtWindowDays: number;
 };
 
 const clearIfActive = (f: FilterControl) => (f.selected != null ? f.clear : undefined);
@@ -84,6 +95,10 @@ export function FilterBar({
   repoFilter,
   typeFilter,
   actorFilter,
+  windowOptions,
+  windowDays,
+  setWindowDays,
+  builtWindowDays,
 }: Props) {
   const selectedActors = actorFilter.selected;
   const [repoQuery, setRepoQuery] = useUrlString('q');
@@ -206,6 +221,29 @@ export function FilterBar({
           by OpenSats
         </a>
       </div>
+
+      <ChipRow label="window:">
+        {windowOptions.map((n) => {
+          const disabled = n > builtWindowDays;
+          const active = n === windowDays;
+          return (
+            <button
+              key={n}
+              type="button"
+              disabled={disabled}
+              onClick={() => setWindowDays(n)}
+              title={
+                disabled
+                  ? `Only ${builtWindowDays} days of data are built. Set HEARTBEAT_WINDOW_DAYS=${n} (or higher) and rebuild to enable.`
+                  : `Show last ${n} days`
+              }
+              className={windowChipClass(active, disabled)}
+            >
+              {n}d
+            </button>
+          );
+        })}
+      </ChipRow>
 
       {fundNames.length > 0 && (
         <ChipRow label="fund:" onClear={clearIfActive(fundFilter)}>

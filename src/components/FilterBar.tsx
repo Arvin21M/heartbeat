@@ -34,6 +34,9 @@ type Props = {
   windowDays: number;
   setWindowDays: (n: number) => void;
   builtWindowDays: number;
+
+  authorQuery: string;
+  setAuthorQuery: (s: string) => void;
 };
 
 const clearIfActive = (f: FilterControl) => (f.selected != null ? f.clear : undefined);
@@ -99,6 +102,8 @@ export function FilterBar({
   windowDays,
   setWindowDays,
   builtWindowDays,
+  authorQuery,
+  setAuthorQuery,
 }: Props) {
   const selectedActors = actorFilter.selected;
   const [repoQuery, setRepoQuery] = useUrlString('q');
@@ -184,6 +189,23 @@ export function FilterBar({
     </>
   );
 
+  const authorRowContent = (
+    <>
+      <span className={ROW_LABEL}>author:</span>
+      <input
+        type="text"
+        value={authorQuery}
+        onChange={(e) => setAuthorQuery(e.target.value)}
+        placeholder="exact GitHub username"
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
+        className={`${chipClass(Boolean(authorQuery))} min-w-0 flex-1 max-w-60 placeholder:text-zinc-600 focus:outline-none ${authorQuery ? '' : CHIP_FOCUS_ACTIVE}`}
+      />
+      {authorQuery && <ClearButton onClick={() => setAuthorQuery('')} />}
+    </>
+  );
+
   const markUrl = `${import.meta.env.BASE_URL}opensats-mark.svg`;
 
   const clearAll = () => {
@@ -192,6 +214,7 @@ export function FilterBar({
     typeFilter.clear();
     actorFilter.clear();
     setRepoQuery('');
+    setAuthorQuery('');
     setReposExpanded(false);
   };
 
@@ -256,6 +279,7 @@ export function FilterBar({
       )}
 
       <div className="flex items-center gap-1.5">{filterRowContent}</div>
+      <div className="flex items-center gap-1.5">{authorRowContent}</div>
 
       <div className="space-y-2">
         <ChipRow label="repos:" onClear={repoClearIfActive}>

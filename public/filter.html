@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>heartbeat · filter for Claude Projects</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09090b;
+      --panel: #18181b;
+      --panel-2: #27272a;
+      --border: #3f3f46;
+      --text: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #f97316;
+      --good: #22c55e;
+      --warn: #eab308;
+      --bad: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.5;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 4px 0;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .panel h2 {
+      font-size: 13px;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .row:last-child { margin-bottom: 0; }
+    label {
+      font-size: 13px;
+      color: var(--muted);
+      min-width: 100px;
+    }
+    select, input[type="text"], textarea {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      flex: 1;
+      min-width: 200px;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+      width: 100%;
+      flex: none;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .chip.active {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+    button {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      padding: 10px 18px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .preview-box {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    .preview-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+    }
+    .preview-row span:first-child { color: var(--muted); }
+    .size-good { color: var(--good); font-weight: 600; }
+    .size-warn { color: var(--warn); font-weight: 600; }
+    .size-bad { color: var(--bad); font-weight: 600; }
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .help {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    a { color: var(--accent); }
+    .small { font-size: 11px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>heartbeat · filter for Claude Projects</h1>
+  <div class="subtitle">
+    Trim the events.json file down so you can upload it to a Claude Project (30 MB limit).
+  </div>
+
+  <div class="panel">
+    <h2>Source data</h2>
+    <div class="status" id="loadStatus">Loading latest events.json...</div>
+    <div class="actions" style="margin-top: 12px;">
+      <button id="reloadBtn" class="secondary" disabled>Reload latest data</button>
+      <span class="small" id="loadedInfo"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Filters</h2>
+
+    <div class="row">
+      <label>fund:</label>
+      <select id="fundSelect">
+        <option value="">— all funds —</option>
+      </select>
+    </div>
+    <div class="help">Optional. Limits to repos in a single fund (defined by repos.*.yml in the repo).</div>
+
+    <div class="row" style="margin-top: 12px;">
+      <label>time window:</label>
+      <div id="windowChips"></div>
+    </div>
+
+    <div class="row" style="margin-top: 12px;">
+      <label>event types:</label>
+      <div id="typeChips"></div>
+    </div>
+
+    <div class="row" style="margin-top: 12px;">
+      <label style="align-self: flex-start; padding-top: 8px;">repos (optional):</label>
+      <textarea
+        id="reposInput"
+        placeholder="One per line, e.g. damus-io/damus&#10;Leave blank to include all repos in the chosen fund."
+      ></textarea>
+    </div>
+
+    <div class="row" style="margin-top: 12px;">
+      <label style="align-self: flex-start; padding-top: 8px;">developers (optional):</label>
+      <textarea
+        id="devsInput"
+        placeholder="One GitHub username per line, e.g. jb55&#10;Leave blank to include all developers."
+      ></textarea>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Preview</h2>
+    <div class="preview-box" id="preview">
+      <div class="preview-row"><span>events kept</span><span id="pEvents">—</span></div>
+      <div class="preview-row"><span>repos kept</span><span id="pRepos">—</span></div>
+      <div class="preview-row"><span>devs kept</span><span id="pDevs">—</span></div>
+      <div class="preview-row"><span>date range</span><span id="pDates">—</span></div>
+      <div class="preview-row"><span>file size</span><span id="pSize">—</span></div>
+    </div>
+
+    <div class="actions">
+      <button id="downloadBtn" disabled>Download filtered JSON</button>
+      <button id="clearBtn" class="secondary">Clear filters</button>
+    </div>
+    <div class="help" style="margin-top: 12px;">
+      Claude Projects has a 30 MB per-file limit. If size is over 30 MB, narrow the filters
+      (shorter time window, fewer repos, fewer event types) and re-check the preview.
+    </div>
+  </div>
+
+  <div class="small">
+    Source data:
+    <a href="data/events.json" target="_blank">data/events.json</a> ·
+    Updated every 6 hours by the GitHub Action ·
+    All filtering happens in your browser — nothing is uploaded anywhere.
+  </div>
+
+  <script>
+    // ---------------- state ----------------
+    let rawData = null; // full events.json contents
+    let funds = {}; // { fundName: [repos] }
+    const WINDOW_OPTIONS = [
+      { label: '30d', days: 30 },
+      { label: '60d', days: 60 },
+      { label: '90d', days: 90 },
+      { label: '180d', days: 180 },
+      { label: '365d', days: 365 },
+      { label: 'all', days: null },
+    ];
+    const TYPE_OPTIONS = [
+      'commit',
+      'pr_opened',
+      'pr_merged',
+      'pr_closed',
+      'issue_opened',
+      'issue_closed',
+      'release',
+    ];
+    let selectedWindow = 90; // default to 90 days
+    let selectedTypes = new Set(TYPE_OPTIONS);
+
+    // ---------------- DOM helpers ----------------
+    const $ = (id) => document.getElementById(id);
+
+    // ---------------- chip rendering ----------------
+    function renderWindowChips() {
+      const c = $('windowChips');
+      c.innerHTML = '';
+      for (const opt of WINDOW_OPTIONS) {
+        const el = document.createElement('span');
+        el.className = 'chip' + (selectedWindow === opt.days ? ' active' : '');
+        el.textContent = opt.label;
+        el.onclick = () => {
+          selectedWindow = opt.days;
+          renderWindowChips();
+          recompute();
+        };
+        c.appendChild(el);
+      }
+    }
+
+    function renderTypeChips() {
+      const c = $('typeChips');
+      c.innerHTML = '';
+      for (const t of TYPE_OPTIONS) {
+        const el = document.createElement('span');
+        el.className = 'chip' + (selectedTypes.has(t) ? ' active' : '');
+        el.textContent = t;
+        el.onclick = () => {
+          if (selectedTypes.has(t)) selectedTypes.delete(t);
+          else selectedTypes.add(t);
+          renderTypeChips();
+          recompute();
+        };
+        c.appendChild(el);
+      }
+    }
+
+    // ---------------- data loading ----------------
+    async function loadData() {
+      $('loadStatus').textContent = 'Loading latest events.json...';
+      $('reloadBtn').disabled = true;
+      try {
+        const res = await fetch('data/events.json', { cache: 'no-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        rawData = await res.json();
+        funds = rawData.funds || {};
+
+        // populate fund dropdown
+        const sel = $('fundSelect');
+        sel.innerHTML = '<option value="">— all funds —</option>';
+        for (const name of Object.keys(funds).sort()) {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name + ' (' + (funds[name] || []).length + ' repos)';
+          sel.appendChild(opt);
+        }
+
+        const totalEvents = (rawData.events || []).length;
+        const totalRepos = (rawData.repos || []).length;
+        $('loadStatus').textContent =
+          'Loaded ' + totalEvents.toLocaleString() + ' events across ' +
+          totalRepos.toLocaleString() + ' repos. Generated ' +
+          (rawData.generatedAt || 'unknown') + '.';
+        $('loadedInfo').textContent = '';
+        recompute();
+      } catch (err) {
+        $('loadStatus').textContent = 'Failed to load: ' + err.message +
+          '. (Are you running this from the deployed site?)';
+      } finally {
+        $('reloadBtn').disabled = false;
+      }
+    }
+
+    // ---------------- filtering ----------------
+    function parseLines(text) {
+      return text
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+
+    function getFilteredEvents() {
+      if (!rawData) return null;
+      const events = rawData.events || [];
+
+      const fundName = $('fundSelect').value;
+      const fundRepos = fundName ? new Set(funds[fundName] || []) : null;
+
+      const repoLines = parseLines($('reposInput').value);
+      const repoFilter = repoLines.length ? new Set(repoLines) : null;
+
+      const devLines = parseLines($('devsInput').value);
+      const devFilter = devLines.length
+        ? new Set(devLines.map((s) => s.toLowerCase()))
+        : null;
+
+      const cutoffMs =
+        selectedWindow == null ? null : Date.now() - selectedWindow * 24 * 60 * 60 * 1000;
+
+      const out = [];
+      for (const e of events) {
+        if (fundRepos && !fundRepos.has(e.repo)) continue;
+        if (repoFilter && !repoFilter.has(e.repo)) continue;
+        if (devFilter && !devFilter.has((e.actor || '').toLowerCase())) continue;
+        if (!selectedTypes.has(e.type)) continue;
+        if (cutoffMs != null) {
+          const ts = Date.parse(e.timestamp);
+          if (Number.isFinite(ts) && ts < cutoffMs) continue;
+        }
+        out.push(e);
+      }
+      return out;
+    }
+
+    function buildFilteredFile(events) {
+      const repos = Array.from(new Set(events.map((e) => e.repo))).sort();
+      const fundName = $('fundSelect').value;
+      // Trim the funds map to only the chosen fund (or to only funds whose repos
+      // are in our kept set) to keep the output small and relevant.
+      let outFunds = {};
+      if (fundName && funds[fundName]) {
+        outFunds[fundName] = funds[fundName].filter((r) => repos.includes(r));
+      } else {
+        for (const [name, list] of Object.entries(funds)) {
+          const kept = (list || []).filter((r) => repos.includes(r));
+          if (kept.length) outFunds[name] = kept;
+        }
+      }
+      return {
+        generatedAt: rawData.generatedAt,
+        filteredAt: new Date().toISOString(),
+        windowDays: selectedWindow,
+        filters: {
+          fund: fundName || null,
+          repos: parseLines($('reposInput').value),
+          devs: parseLines($('devsInput').value),
+          types: Array.from(selectedTypes).sort(),
+        },
+        repos,
+        funds: outFunds,
+        events,
+      };
+    }
+
+    // ---------------- preview & download ----------------
+    let lastSizeBytes = 0;
+
+    function recompute() {
+      const events = getFilteredEvents();
+      if (events == null) return;
+
+      const repos = new Set(events.map((e) => e.repo));
+      const devs = new Set(events.map((e) => e.actor).filter(Boolean));
+
+      let minTs = Infinity;
+      let maxTs = -Infinity;
+      for (const e of events) {
+        const t = Date.parse(e.timestamp);
+        if (Number.isFinite(t)) {
+          if (t < minTs) minTs = t;
+          if (t > maxTs) maxTs = t;
+        }
+      }
+      const dateRange =
+        events.length === 0
+          ? '—'
+          : new Date(minTs).toISOString().slice(0, 10) +
+            ' → ' +
+            new Date(maxTs).toISOString().slice(0, 10);
+
+      // Size estimate: build the file and measure the JSON byte length.
+      // This is the actual size that would be downloaded.
+      const fileObj = buildFilteredFile(events);
+      const jsonStr = JSON.stringify(fileObj);
+      const sizeBytes = new Blob([jsonStr]).size;
+      lastSizeBytes = sizeBytes;
+
+      $('pEvents').textContent = events.length.toLocaleString();
+      $('pRepos').textContent = repos.size.toLocaleString();
+      $('pDevs').textContent = devs.size.toLocaleString();
+      $('pDates').textContent = dateRange;
+
+      const sizeMB = sizeBytes / (1024 * 1024);
+      const sizeEl = $('pSize');
+      sizeEl.textContent = sizeMB.toFixed(2) + ' MB';
+      sizeEl.className = '';
+      if (sizeMB > 30) {
+        sizeEl.classList.add('size-bad');
+        sizeEl.textContent += '  ⚠ over 30 MB Project limit';
+      } else if (sizeMB > 25) {
+        sizeEl.classList.add('size-warn');
+        sizeEl.textContent += '  · close to limit';
+      } else {
+        sizeEl.classList.add('size-good');
+        sizeEl.textContent += '  ✓ fits';
+      }
+
+      $('downloadBtn').disabled = events.length === 0;
+    }
+
+    function downloadFiltered() {
+      const events = getFilteredEvents();
+      if (!events || events.length === 0) return;
+      const fileObj = buildFilteredFile(events);
+      const jsonStr = JSON.stringify(fileObj);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+      a.download = 'events-filtered-' + stamp + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function clearFilters() {
+      $('fundSelect').value = '';
+      $('reposInput').value = '';
+      $('devsInput').value = '';
+      selectedWindow = 90;
+      selectedTypes = new Set(TYPE_OPTIONS);
+      renderWindowChips();
+      renderTypeChips();
+      recompute();
+    }
+
+    // ---------------- wire up ----------------
+    $('reloadBtn').addEventListener('click', loadData);
+    $('downloadBtn').addEventListener('click', downloadFiltered);
+    $('clearBtn').addEventListener('click', clearFilters);
+    $('fundSelect').addEventListener('change', recompute);
+    $('reposInput').addEventListener('input', recompute);
+    $('devsInput').addEventListener('input', recompute);
+
+    renderWindowChips();
+    renderTypeChips();
+    loadData();
+  </script>
+</body>
+</html>

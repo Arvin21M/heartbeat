@@ -1,17 +1,19 @@
 repos:
   - 05nelsonm/kmp-tor
-  - 256-Foundation/asic-rs
-  - 256-Foundation/btc-toolkit
-  - 256-Foundation/emberone00-pcb
-  - 256-Foundation/Hydra-Pool
-  - 256-Foundation/Libre-Board
+  - 21-DOT-DEV/swift-secp256k1
+  - 256Foundation/asic-rs
+  - 256Foundation/btc-toolkit
+  - 256Foundation/emberone00-pcb
+  - 256Foundation/Hydra-Pool
+  - 256Foundation/Libre-Board
   - aaron-recompile/btcaaron
   - andreasgriffin/bitcoin-safe
-  - asmap/asmap-data
   - asmap/kartograf
   - asmap/rpki-client-nix
+  - asmap/asmap-website
   - bennyhodl/dlcdevkit
   - BFF-org/cto
+  - bitcoin-core/asmap-data
   - bitcoin-core/gui-qml
   - bitcoin-dev-project/warnet
   - bitcoin/bitcoin
@@ -31,24 +33,22 @@ repos:
   - bitcoinppl/cove
   - bitcoinresearchkit/brk
   - bjohnson5/blast
-  - BlakeKaufman/BlitzWallet
   - BlitzWallet/BlitzWallet
   - BlixtWallet/noah
   - braidpool/braidpool
   - btcpayserver/btcpayserver
   - callebtc/cashu-decoder
   - callebtc/nfchat
-  - callebtc/nostr-follow-packs
   - cashubtc/cashu-ts
   - cashubtc/cdk
   - cashubtc/eNuts
+  - callebtc/following.space
   - cashubtc/npubcash-server
   - cashubtc/nutshell
+  - cashubtc/orchard
   - chrisguida/smaug
-  - chrisguida/watchdescriptor
   - cryptoadvance/specter-diy
   - cygnet3/dana
-  - cygnet3/danawallet
   - davidcaseria/cdk_flutter
   - ddustin/lightning
   - DesobedienteTecnologico/dtails
@@ -57,16 +57,13 @@ repos:
   - ElementsProject/lightning
   - elnosh/gonuts
   - fedimint/fedimint
-  - fjahr/asmap-website
   - Fonta1n3/FullyNoded
   - gandlafbtc/nutstash-wallet
+  - getfloresta/Floresta
   - getfloresta/floresta-nix
   - getlipa/invoice-detective
-  - GigaBitcoin/secp256k1.swift
   - hodlinator/bitcoin
   - hodlinator/hodlinator
-  - hsjoberg/blixt-wallet
-  - ipms-io/nlightning
   - janb84/BitcoinKernel.NET
   - jmoik/bitcoin
   - joinmarket-ng/joinmarket-ng
@@ -108,12 +105,13 @@ repos:
   - m1sterc001guy/fedimint
   - m1sterc001guy/fedimintd-mobile
   - m1sterc001guy/roastr
-  - macgyver13/silent-payment-hub
+  - macgyver13/silent-payments-hub
   - maflcko/b-c-cov
   - maflcko/b-c-gui-translations-review
   - maflcko/b-c-nightly
   - maflcko/bitcoin-core-nightly
   - maflcko/DrahtBot
+  - mplorentz/horcrux
   - michaelWuensch/BitBanana
   - minibits-cash/minibits_wallet
   - morehouse/smite
@@ -121,10 +119,10 @@ repos:
   - mplsgrant/warnet
   - MyFirstBitcoin/Light-Node-Directory
   - nakamotoinstitute/nakamotoinstitute.org
+  - nGoline/NLightning
   - niftynei/BASIC
   - odudex/Kern
   - Open-Source-Justice-Foundation/foundation-formation-kit
-  - orangeshyguy21/orchard
   - payjoin/rust-payjoin
   - Peach2Peach/peach-app
   - permissionlesstech/bitchat-android
@@ -151,6 +149,7 @@ repos:
   - setavenger/blindbit-oracle
   - Sjors/bitcoin
   - skot/bitaxe
+  - smolcars/blixt-wallet
   - SovranBitcoin/Sovran
   - stratum-mining/benchmarking-tool
   - stratum-mining/stratum
@@ -167,7 +166,6 @@ repos:
   - utreexo/utreexod
   - vexl-it/vexl
   - vincenzopalazzo/lampo.rs
-  - vinteumorg/floresta
   - vnprc/hashpool
   - zerosync/zerosync
   - zeugmaster/CashuSwift

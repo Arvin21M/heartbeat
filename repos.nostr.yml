@@ -6,6 +6,8 @@ repos:
   - atrifat/nostr-filter-relay
   - AustinKelsay/nip55-ios-test
   - believethehype/dvm
+  - Bigbrotr/nostr-tools
+  - Bigbrotr/relay-shadow-dvm
   - bitvora/algo-relay
   - blackcoffeexbt/hardware-nostr-connect-device
   - BlowaterNostr/blowater
@@ -106,7 +108,7 @@ repos:
   - mattn/nostr-relay
   - max21dev/groups
   - mikedilger/gossip
-  - mikedilger/gossip-relay-model
+  - mikedilger/gossip-relay-picker
   - mikedilger/nostr-types
   - mmalmi/nostr-double-ratchet
   - MostroP2P/mostro
@@ -127,7 +129,7 @@ repos:
   - paulmillr/noble-ciphers
   - Peach2Peach/peach-app
   - persianccbook/nips-persian
-  - PlebOne/NostrFeedz
+  - PlebOne/Nostr-Feedz
   - pratik227/zap_dashboard
   - prolic/futr
   - purrgrammer/chachi
@@ -161,7 +163,6 @@ repos:
   - vertex-lab/nostr-sqlite
   - vertex-lab/npub.world
   - vicariousdrama/cornychat
-  - VincenzoImp/bigbrotr
   - vitorpamplona/amethyst
   - vitorpamplona/amethyst-push-notif-server
   - vitorpamplona/lazereyes
@@ -169,12 +170,13 @@ repos:
   - vstabile/sig4sats-script
   - YakiHonne/mobile-app
   - YakiHonne/web-app
-  - zapstore/blossomd
-  - zapstore/ftsrelay
-  - zapstore/indexer
+  - zapstore/webapp
   - zapstore/relay
-  - zapstore/website
   - zapstore/zapstore
+  - zapstore/zsp
+  - zapstore/defender
+  - zapstore/goapk
   - zapstore/zapstore-cli
+  - zapstore/knox
   - ZharlieW/Aegis
   - zmeyer44/flockstr

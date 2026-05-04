@@ -36,7 +36,6 @@ repos:
   - BlixtWallet/noah
   - braidpool/braidpool
   - btcpayserver/btcpayserver
-  - callebtc/bitchat-observer
   - callebtc/cashu-auditor
   - callebtc/cashu-decoder
   - callebtc/nfchat
@@ -100,7 +99,6 @@ repos:
   - LibreriadeSatoshi/dashboard-classroom-b4os
   - LibreriadeSatoshi/Master-Bitcoin-From-Command-Line
   - LibreriadeSatoshi/The-Protocol-Experts
-  - LibreriadeSatoshi/update-legacywallet
   - lightningnetwork/lnd
   - lnbits/lnbits
   - LNHANCE-Expedition/bolts
@@ -130,13 +128,14 @@ repos:
   - orangeshyguy21/orchard
   - payjoin/rust-payjoin
   - Peach2Peach/peach-app
+  - permissionlesstech/bitchat-android
   - pmienk/libbitcoin-build
   - pmienk/libbitcoin-database
   - pmienk/libbitcoin-network
   - pmienk/libbitcoin-node
   - pmienk/libbitcoin-system
   - pool2win/braidpool
-  - pool2win/p2pool
+  - p2poolv2/p2poolv2
   - purpleKarrot/cmake-discover-tests
   - raspiblitz/raspiblitz
   - rawBit-io/rawbit

@@ -36,7 +36,6 @@ repos:
   - BlixtWallet/noah
   - braidpool/braidpool
   - btcpayserver/btcpayserver
-  - callebtc/cashu-auditor
   - callebtc/cashu-decoder
   - callebtc/nfchat
   - callebtc/nostr-follow-packs

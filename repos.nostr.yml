@@ -1,16 +1,13 @@
 repos:
-  - abhay-raizada/nostr-forms
   - Anderson-Juhasc/nostrord
-  - ArjenStens/nostr-epoxy-reverse-proxy
   - arkin0x/cyberspace
   - atrifat/nostr-filter-relay
   - AustinKelsay/nip55-ios-test
-  - believethehype/dvm
+  - barrydeen/algo-relay
+  - believethehype/nostrdvm
   - Bigbrotr/nostr-tools
   - Bigbrotr/relay-shadow-dvm
-  - bitvora/algo-relay
   - blackcoffeexbt/hardware-nostr-connect-device
-  - BlowaterNostr/blowater
   - camelus-hq/camelus
   - cashubtc/eNuts
   - cashubtc/npubcash-server
@@ -25,7 +22,6 @@ repos:
   - DanConwayDev/ngit-cli
   - dluvian/Nozzle
   - dluvian/voyage
-  - dskvr/nostr-watch
   - dtdannen/dvmdash
   - dtonon/bitalk
   - dtonon/bitcoin-foldable
@@ -47,6 +43,7 @@ repos:
   - fiatjaf/yakbak2
   - flox1an/nostube
   - Fonta1n3/FullyNoded
+  - formstr-hq/nostr-forms
   - frnandu/yana
   - FROSTR-ORG/bifrost
   - FROSTR-ORG/bifrost-rs
@@ -66,6 +63,7 @@ repos:
   - frostr-org/igloo-web
   - FROSTR-ORG/nostr-connect
   - FROSTR-ORG/web-demo
+  - futrnostr/futr
   - futurepaul/hypernote
   - futurepaul/hypernote-elements
   - Galaxoid-Labs/Seer
@@ -91,20 +89,17 @@ repos:
   - hzrd149/nostrudel
   - hzrd149/nsite-gateway
   - hzrd149/nsite-homepage
-  - hzrd149/nsite-ts
   - hzrd149/umbrel-blob-box
   - hzrd149/vite-plugin-funding
   - hzrd149/window.nostrdb.js
   - irislib/iris-messenger
   - KoalaSat/pokey
-  - leo-lox/camelus
   - LibertyFarmer/hamstr
   - lnbits/arduino-nostr
   - lnbits/lnbits
   - lumehq/coop
   - lumehq/lume
   - lumehq/nostr-connect
-  - luminous-devs/lume
   - mattn/nostr-relay
   - max21dev/groups
   - mikedilger/gossip
@@ -113,33 +108,33 @@ repos:
   - mmalmi/nostr-double-ratchet
   - MostroP2P/mostro
   - mplorentz/keydex
-  - nodetec/captains-log
+  - nodetec/comet
+  - nodetec/keystache
   - nogringo/nostr-mail
   - nostr-dev-kit/ndk
   - nostr-sdk/nostr-sdk-ios
   - nostrbuild/nostr.build
+  - nostrver-se/nostr-php
   - nostur-com/nostur-ios-public
+  - Origami74/nostr-epoxy-reverse-proxy
   - ostyjs/create-osty
+  - ostyjs/nostr-hooks
   - pablof7z/hl-studio
   - pablof7z/mcp-money
   - pablof7z/NDKSwift
   - pablof7z/olas-ios
-  - pablof7z/tenex
   - pablof7z/walker
   - paulmillr/noble-ciphers
   - Peach2Peach/peach-app
   - persianccbook/nips-persian
   - PlebOne/Nostr-Feedz
   - pratik227/zap_dashboard
-  - prolic/futr
   - purrgrammer/chachi
-  - relaystr/dart_ndk
   - relaystr/ndk
-  - Resolvr-io/Keystache
   - rust-nostr/nostr
   - sanah9/noscall
-  - sepehr-safari/nostr-hooks
-  - sepehr-safari/nostribe-web-client
+  - sandwichfarm/nostr-watch
+  - sepehr-safari/nostribe
   - sepehr-safari/pinstr
   - shopstr-eng/shopstr
   - SnowCait/cloudflare-http-proxy
@@ -153,8 +148,8 @@ repos:
   - SnowCait/SteamNowPlaying
   - SnowCait/user-notes-search
   - suhailsaqan/swae
-  - swentel/nostr-php
   - tami1A84/null--nostr
+  - tenex-chat/tenex
   - theborakompanioni/nostr-spring-boot-starter
   - trbouma/safebox
   - Trustroots/nostroots
@@ -168,6 +163,7 @@ repos:
   - vitorpamplona/lazereyes
   - vitorpamplona/negentropy-kmp
   - vstabile/sig4sats-script
+  - waterblower/blowater
   - YakiHonne/mobile-app
   - YakiHonne/web-app
   - zapstore/webapp

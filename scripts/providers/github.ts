@@ -1,6 +1,18 @@
 import { graphql } from '@octokit/graphql';
 import type { Event, EventType } from '../../src/types';
 
+// --- Provider identity ------------------------------------------------------
+
+const HOST = 'github';
+
+function githubRepoKey(repo: string): string {
+  return `${HOST}:${repo}`;
+}
+
+function githubActorKey(actor: string): string {
+  return `${HOST}:${actor}`;
+}
+
 // --- Configurable knobs (env vars override defaults) ------------------------
 
 function intFromEnv(name: string, fallback: number): number {
@@ -189,11 +201,17 @@ type EventInput = {
 };
 
 function makeEvent(e: EventInput): Event {
+  const repoKey = githubRepoKey(e.repo);
+  const actorKey = githubActorKey(e.actor);
+
   return {
-    id: `${e.repo}:${e.type}:${e.nativeId}`,
+    id: `${repoKey}:${e.type}:${e.nativeId}`,
+    host: HOST,
+    repoKey,
     repo: e.repo,
     type: e.type,
     timestamp: e.timestamp,
+    actorKey,
     actor: e.actor,
     title: e.title,
     url: e.url,

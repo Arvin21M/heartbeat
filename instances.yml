@@ -1,0 +1,35 @@
+# Optional registry of self-hosted Forgejo/Gitea instances.
+#
+# Each top-level key is a host label that you'll use as a prefix in your
+# repos.*.yml entries. For example, registering "mygitea" here lets you
+# write `mygitea:owner/repo` in repos.general.yml and have it routed to
+# the configured base URL.
+#
+# Format (all baseUrl / tokenEnv values should be quoted strings to avoid
+# YAML parsing surprises around colons):
+#
+# <label>:
+#   baseUrl: "https://<host>/api/v1"
+#   tokenEnv: "<ENV_VAR_NAME>"   # optional; named env var holding an API token
+#
+# Rules:
+# - Host labels must be lowercase alphanumeric (a-z, 0-9). No dashes,
+#   underscores, dots, or other punctuation.
+# - "codeberg" is built-in and cannot be redefined here. Defining it
+#   logs a warning at fetch time and is otherwise ignored.
+# - tokenEnv should name a dedicated environment variable (e.g.
+#   `MYGITEA_TOKEN`). Do NOT point it at general-purpose variables like
+#   PATH or HOME -- the value is sent as the API token verbatim.
+# - If tokenEnv is unset or the named variable is empty, requests are
+#   sent unauthenticated. Public repos still work; private ones won't.
+# - This file is optional. If absent, only the built-in `codeberg` host
+#   is available for Forgejo/Gitea-style fetches.
+#
+# Example (uncomment and edit):
+#
+# mygitea:
+#   baseUrl: "https://gitea.example.org/api/v1"
+#   tokenEnv: "MYGITEA_TOKEN"
+#
+# someforgejo:
+#   baseUrl: "https://forgejo.example.org/api/v1"

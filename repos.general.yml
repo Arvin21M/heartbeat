@@ -170,3 +170,4 @@ repos:
   - zerosync/zerosync
   - zeugmaster/CashuSwift
   - zeugmaster/macadamia
+  - codeberg:forgejo/forgejo

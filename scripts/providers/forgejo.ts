@@ -1,4 +1,5 @@
 import type { Event, EventType } from '../../src/types';
+import { retryable } from '../lib/retry';
 
 // --- Provider identity ------------------------------------------------------
 //
@@ -137,16 +138,24 @@ export function makeForgejoClient(options: {
     host,
     async get<T>(path: string) {
       const url = `${baseUrl}${path}`;
-      const res = await fetch(url, { headers });
-      if (res.status === 404) {
-        return { status: 404, body: null };
-      }
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status} on ${path}: ${text.slice(0, 200)}`);
-      }
-      const body = (await res.json()) as T;
-      return { status: res.status, body };
+      // Each request retries on transient 5xx and network errors. The retry
+      // helper logs each attempt; 4xx (including 404) is returned/thrown
+      // immediately without retry.
+      return await retryable(
+        async () => {
+          const res = await fetch(url, { headers });
+          if (res.status === 404) {
+            return { status: 404, body: null };
+          }
+          if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`HTTP ${res.status} on ${path}: ${text.slice(0, 200)}`);
+          }
+          const body = (await res.json()) as T;
+          return { status: res.status, body };
+        },
+        { label: `${host} ${path}` },
+      );
     },
   };
 }

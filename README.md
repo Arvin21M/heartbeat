@@ -1,42 +1,26 @@
 # heartbeat365
 
-Static activity dashboard for tracked OpenSats-funded bitcoin and nostr
-repositories.
+Static activity dashboard for tracked OpenSats-funded bitcoin and nostr repositories.
 
-heartbeat365 renders commits, pull requests, issues, and releases as a
-`git log --oneline`-style timeline. This fork is configured with a
-365-day data window for annual research and impact-report workflows.
+heartbeat365 renders commits, pull requests / merge requests, issues, releases, and NIP-34 nostr repo activity as a `git log --oneline`-style timeline. This fork is configured with a 365-day data window for annual research and impact-report workflows.
 
-Live site:
+Live site: https://arvin21m.github.io/heartbeat365/  
+Live dataset: https://arvin21m.github.io/heartbeat365/data/events.json  
+Filter tool: https://arvin21m.github.io/heartbeat365/filter.html
 
-https://arvin21m.github.io/heartbeat365/
+This is a fork of [OpenSats/heartbeat](https://github.com/OpenSats/heartbeat), extended for longer research windows, multi-host fetching, host-aware event identity, GitHub Pages deployment, strict author filtering, virtualized rendering, browser-side JSON filtering, and monthly repo health checks.
 
-Live dataset:
+## Current capabilities
 
-https://arvin21m.github.io/heartbeat365/data/events.json
+heartbeat365 currently fetches activity from five provider families:
 
-Filter tool:
+- **GitHub** — GraphQL provider for bare `owner/name` entries.
+- **Codeberg / Forgejo / Gitea** — REST provider for `codeberg:owner/name` and registered self-hosted Forgejo/Gitea instance labels.
+- **GitLab.com** — REST v4 provider for `gitlab:group/project` and nested GitLab namespace paths.
+- **Plain Git URLs** — commits-only provider for `git:https://...` entries, using shallow clone + `git log`.
+- **NIP-34 nostr repos** — nostr provider for `nostr:naddr1...` repo announcements, using `nostr-tools`, relay queries, and signature verification.
 
-https://arvin21m.github.io/heartbeat365/filter.html
-
-This is a fork of [OpenSats/heartbeat](https://github.com/OpenSats/heartbeat),
-extended for longer research windows, paginated GitHub GraphQL fetching,
-GitHub Pages deployment, strict author filtering, virtualized rendering,
-browser-side JSON filtering, and monthly repo health checks.
-
-## How it works
-
-A build-time script fetches GitHub activity through the GitHub GraphQL API
-and writes:
-
-```text
-public/data/events.json
-```
-
-The browser loads that static JSON file. Visitors do not call the GitHub API
-directly, so normal site usage does not consume GitHub API rate limit.
-
-The dataset includes these event types:
+Supported event types are:
 
 - `commit`
 - `pr_opened`
@@ -46,22 +30,137 @@ The dataset includes these event types:
 - `issue_closed`
 - `release`
 
-Each event includes:
+Notes:
+
+- GitHub, Forgejo/Gitea, Codeberg, and GitLab can provide commits, PRs/MRs, issues, and releases where the host API exposes them.
+- Plain Git URL entries are commits-only. Git alone does not expose PRs, issues, releases, comments, or reviews.
+- NIP-34 nostr entries currently track patch / PR / issue style events and status events. NIP-34 repo state events are not converted into fake commit events; pair a `nostr:naddr1...` entry with a `git:https://...` entry if you want commits for the same repo.
+- Mirrors may appear as separate repos if the same project is tracked on multiple hosts. Cross-host mirror deduplication is intentionally not implemented yet.
+
+## How it works
+
+A build-time script reads the `repos*.yml` files, routes each repo entry to the correct provider, fetches activity, normalizes the events into one shared schema, and writes:
+
+```text
+public/data/events.json
+```
+
+The browser loads that static JSON file. Visitors do not call GitHub, GitLab, Codeberg, Forgejo, Gitea, nostr relays, or Git remotes directly. Normal site usage does not consume provider API rate limits.
+
+The full dataset shape is defined in `src/types.ts`.
+
+Each event includes host-aware identity fields:
 
 ```ts
 {
   id: string
+
+  host: string
+  repoKey: string
   repo: string
+
   type: EventType
   timestamp: string
+
+  actorKey: string
   actor: string
+
   title: string
   url: string
   shortId: string
 }
 ```
 
-The full dataset shape is defined in `src/types.ts`.
+`repo` and `actor` are kept simple for display and search. `repoKey` and `actorKey` include the host and are used internally so same-named repos or users on different hosts do not collide.
+
+## Repo config grammar
+
+Repository entries live in `repos*.yml` files at the project root.
+
+Supported entry forms:
+
+```yaml
+repos:
+  # GitHub, implicit
+  - owner/repo
+
+  # Built-in Codeberg / Forgejo
+  - codeberg:owner/repo
+
+  # Built-in GitLab.com
+  - gitlab:group/project
+  - gitlab:group/subgroup/project
+
+  # Plain Git URL, commits only
+  - git:https://example.com/owner/repo
+  - git:https://example.com/owner/repo.git
+
+  # NIP-34 nostr repo announcement
+  - "nostr:naddr1..."
+
+  # Self-hosted Forgejo/Gitea instance label from instances.yml
+  - mygitea:owner/repo
+```
+
+Rules:
+
+- Bare `owner/name` means GitHub.
+- `github:` is intentionally not accepted as an explicit prefix. Use bare `owner/name`.
+- `codeberg:` is built in.
+- `gitlab:` supports nested groups, such as `gitlab:group/subgroup/project`.
+- `git:https://...` must use HTTPS and is commits-only.
+- `nostr:naddr1...` values should be quoted in YAML because of the embedded colon.
+- Self-hosted Forgejo/Gitea prefixes must be registered in `instances.yml`.
+
+Files are merged and deduplicated during the fetch step. Fund buckets are determined from the file name unless the file sets an explicit `fund:` value.
+
+Examples:
+
+```yaml
+# repos.general.yml
+repos:
+  - bitcoin/bitcoin
+  - codeberg:joinmarket-ng/joinmarket-ng
+  - gitlab:gitlab-org/cli
+```
+
+```yaml
+# repos.nostr.yml
+fund: nostr
+repos:
+  - nostr-dev-kit/ndk
+  - "nostr:naddr1..."
+```
+
+## Self-hosted Forgejo / Gitea instances
+
+Self-hosted Forgejo/Gitea instances are registered in `instances.yml`.
+
+Example:
+
+```yaml
+mygitea:
+  baseUrl: "https://gitea.example.org/api/v1"
+  tokenEnv: "MYGITEA_TOKEN"
+
+someforgejo:
+  baseUrl: "https://forgejo.example.org/api/v1"
+```
+
+Rules:
+
+- Host labels must be lowercase alphanumeric only.
+- Built-in labels such as `codeberg`, `gitlab`, `git`, `nostr`, and `github` cannot be redefined.
+- `baseUrl` should point at the instance REST API root.
+- `tokenEnv` is optional. If present, it names the environment variable that holds the token for that instance.
+- If `tokenEnv` is omitted or empty, requests are unauthenticated.
+
+After registering an instance, use the label in any `repos*.yml` file:
+
+```yaml
+repos:
+  - mygitea:owner/repo
+```
 
 ## Data
 
@@ -74,25 +173,24 @@ The deployed site publishes the full dataset alongside the app:
 Current deployed behavior:
 
 - The GitHub Pages workflow fetches a 365-day dataset.
-- The workflow refreshes every 6 hours.
-- Each refresh overwrites the published `events.json`.
+- The workflow runs on pushes to `master`.
+- The workflow refreshes on a scheduled cron every 6 hours.
+- The workflow can also be triggered manually from the Actions tab.
+- Each successful refresh overwrites the published `events.json`.
 - The published site is static.
 - The browser only reads the generated JSON file.
 
-If you need durable historical snapshots, archive downloaded JSON files
-separately. The live `events.json` file is not a historical archive.
+The live `events.json` file is not a historical archive. If you need durable historical snapshots, download and archive JSON files separately.
 
 ## Main dashboard filters
 
-All dashboard filters run client-side on the already-loaded dataset.
-Most filters serialize to the URL, so filtered views can be shared.
+All dashboard filters run client-side on the already-loaded dataset. Most filters serialize to the URL, so filtered views can be shared.
 
 ### Window filter
 
 - UI: `30d / 60d / 90d / 180d / 365d` chips
 - URL param: `?window=N`
-- Match behavior: shows events from the last `N` days, limited by the
-  built dataset
+- Match behavior: shows events from the last `N` days, limited by the built dataset
 
 ### Fund filter
 
@@ -104,7 +202,7 @@ Most filters serialize to the URL, so filtered views can be shared.
 
 - UI: `filter:` text input
 - URL param: `?q=...`
-- Match behavior: substring match across repo paths
+- Match behavior: substring match across displayed repo paths
 
 ### Repo selection
 
@@ -116,13 +214,13 @@ Most filters serialize to the URL, so filtered views can be shared.
 
 - UI: `author:` text input
 - URL param: `?author=...`
-- Match behavior: exact GitHub username match against the event actor
+- Match behavior: exact actor match against the event actor
 
 ### Event type filter
 
 - UI: event-type chips
 - URL param: `?types=...`
-- Match behavior: commit, pull request, issue, and release event subsets
+- Match behavior: commit, pull request / merge request, issue, and release event subsets
 
 ### Developer chip filter
 
@@ -132,13 +230,13 @@ Most filters serialize to the URL, so filtered views can be shared.
 
 Notes:
 
-- `?q=` is repo-name search only. It does not search authors or event text.
+- `?q=` is repo-name search only.
+- It does not search authors or event text.
 - `?author=` is the strict author filter.
 - Use `?author=` when preparing single-developer or single-grantee research.
 - Fund names come from the `repos*.yml` files at the project root.
 - Window chips larger than the built dataset may be disabled in the UI.
-- A 365-day view requires the dataset to be fetched with at least
-  `HEARTBEAT_WINDOW_DAYS=365`.
+- A 365-day view requires the dataset to be fetched with at least `HEARTBEAT_WINDOW_DAYS=365`.
 
 ## Standalone JSON filter tool
 
@@ -148,11 +246,9 @@ The standalone filter tool is available at:
 /filter.html
 ```
 
-It is useful when the full `events.json` file is too large for analysis,
-archiving, or uploading elsewhere.
+It is useful when the full `events.json` file is too large for analysis, archiving, or uploading elsewhere.
 
-The filter tool loads the latest deployed `data/events.json` and lets you
-filter by:
+The filter tool loads the latest deployed `data/events.json` and lets you filter by:
 
 - fund
 - time window
@@ -169,8 +265,7 @@ The filter tool supports these time windows:
 - `365d`
 - `all`
 
-The filter tool defaults to `90d`. Choose `365d` or `all` if you want the
-full annual dataset.
+The filter tool defaults to `90d`. Choose `365d` or `all` if you want the full annual dataset.
 
 The preview shows:
 
@@ -186,8 +281,7 @@ The download button creates a local file named like:
 events-filtered-YYYY-MM-DD-HH-MM.json
 ```
 
-The filtered export keeps the same core event data shape and also adds
-filter metadata:
+The filtered export keeps the same core event data shape and also adds filter metadata:
 
 ```ts
 {
@@ -222,11 +316,23 @@ npm run fetch
 npm run dev
 ```
 
-`GITHUB_TOKEN` or `GH_TOKEN` is required for the fetch step.
+`GITHUB_TOKEN` or `GH_TOKEN` is required if the config includes GitHub repos.
 
-For public repositories, a GitHub token with access to public repo data is
-enough. If you omit `HEARTBEAT_WINDOW_DAYS`, the fetch script uses the
-upstream-compatible default of `90`.
+Optional provider tokens:
+
+```bash
+export CODEBERG_TOKEN=...
+export GITLAB_TOKEN=...
+export MYGITEA_TOKEN=...
+```
+
+For public Codeberg, GitLab, and self-hosted Forgejo/Gitea repos, unauthenticated requests may work, but tokens are useful for rate limits and private/inaccessible repos.
+
+Plain Git URL entries do not use API tokens.
+
+NIP-34 nostr entries do not use API tokens.
+
+If you omit `HEARTBEAT_WINDOW_DAYS`, the fetch script uses the upstream-compatible default of `90`.
 
 To generate the deployed-style annual dataset locally, keep:
 
@@ -236,77 +342,41 @@ export HEARTBEAT_WINDOW_DAYS=365
 
 ## Scripts
 
-- `npm run dev`
-  - Start the Vite dev server.
-
-- `npm run fetch`
-  - Fetch GitHub activity and write `public/data/events.json`.
-
-- `npm run build`
-  - Type-check and build the static site.
-
-- `npm run preview`
-  - Preview the built site locally.
-
-- `npm run typecheck`
-  - Run TypeScript checks without building.
-
-- `npm run lint`
-  - Run ESLint.
-
-- `npm run format`
-  - Format files with Prettier.
-
-- `npm run format:check`
-  - Check formatting.
-
-- `npm run vercel-build`
-  - Fetch data and build for Vercel.
-
-## Configure repos
-
-Each `repos*.yml` file at the project root lists tracked repositories.
-
-Example:
-
-```yaml
-repos:
-  - owner/repo-1
-  - owner/repo-2
-```
-
-Files are merged and deduplicated during the fetch step.
-
-Fund buckets are determined as follows:
-
-- `repos.general.yml` becomes the `general` fund.
-- `repos.nostr.yml` becomes the `nostr` fund.
-- `repos.opensats.yml` becomes the `opensats` fund.
-- `repos.yml` is also supported and falls back to the `general` fund.
-- A file can also define an explicit `fund:` value.
-
-Example with explicit fund name:
-
-```yaml
-fund: nostr
-repos:
-  - owner/repo-1
-  - owner/repo-2
-```
+- `npm run dev` - Start the Vite dev server.
+- `npm run fetch` - Fetch activity and write `public/data/events.json`.
+- `npm run build` - Type-check and build the static site.
+- `npm run preview` - Preview the built site locally.
+- `npm run typecheck` - Run TypeScript checks without building.
+- `npm run lint` - Run ESLint.
+- `npm run format` - Format files with Prettier.
+- `npm run format:check` - Check formatting.
+- `npm run vercel-build` - Fetch data and build for Vercel.
 
 ## Fetch configuration
 
 Environment variables override the fetch defaults.
 
-### GitHub token variables
+### Token variables
 
 - `GITHUB_TOKEN`
-  - Default: required unless `GH_TOKEN` is set
-  - Purpose: GitHub token used by the fetch script
+  - Default: required unless `GH_TOKEN` is set, when GitHub repos are configured
+  - Purpose: GitHub token used by the GitHub provider
 
 - `GH_TOKEN`
   - Default: optional fallback
-  - Purpose: alternative token variable
+  - Purpose: alternative GitHub token variable
+
+- `CODEBERG_TOKEN`
+  - Default: optional
+  - Purpose: token for the built-in Codeberg provider
+
+- `GITLAB_TOKEN`
+  - Default: optional
+  - Purpose: token for the built-in GitLab.com provider
+
+- Custom `tokenEnv` values from `instances.yml`
+  - Default: optional
+  - Purpose: tokens for self-hosted Forgejo/Gitea instances
 
 ### Window variable
 
@@ -317,20 +387,20 @@ Environment variables override the fetch defaults.
 ### Page-size variables
 
 - `HEARTBEAT_COMMITS_PAGE_SIZE`
-  - Default: `100`
-  - Purpose: GraphQL page size for commits
+  - Default: GitHub `100`, Forgejo/Gitea `50`, GitLab `50`
+  - Purpose: page size for commits
 
 - `HEARTBEAT_PRS_PAGE_SIZE`
-  - Default: `50`
-  - Purpose: GraphQL page size for pull requests
+  - Default: GitHub `50`, Forgejo/Gitea `50`, GitLab merge requests `50`
+  - Purpose: page size for pull requests / merge requests
 
 - `HEARTBEAT_ISSUES_PAGE_SIZE`
   - Default: `50`
-  - Purpose: GraphQL page size for issues
+  - Purpose: page size for issues
 
 - `HEARTBEAT_RELEASES_PAGE_SIZE`
   - Default: `20`
-  - Purpose: GraphQL page size for releases
+  - Purpose: page size for releases
 
 ### Per-repo cap variables
 
@@ -340,7 +410,7 @@ Environment variables override the fetch defaults.
 
 - `HEARTBEAT_PRS_MAX_PER_REPO`
   - Default: `1000`
-  - Purpose: hard cap on pull requests per repo
+  - Purpose: hard cap on pull requests / merge requests per repo
 
 - `HEARTBEAT_ISSUES_MAX_PER_REPO`
   - Default: `1000`
@@ -350,11 +420,31 @@ Environment variables override the fetch defaults.
   - Default: `200`
   - Purpose: hard cap on releases per repo
 
-The fetcher paginates each connection until it crosses the selected
-time-window cutoff or hits the relevant per-repo cap.
+The caps are safety limits. The normal terminator is the selected `HEARTBEAT_WINDOW_DAYS` cutoff.
 
-The caps are safety limits. The normal terminator is
-`HEARTBEAT_WINDOW_DAYS`.
+## Retry behavior
+
+The shared retry helper is used around transient provider failures.
+
+It retries:
+
+- selected HTTP 5xx responses
+- network errors such as resets, temporary DNS failures, and timeouts
+- fetch network failures
+
+It does not retry:
+
+- HTTP 4xx responses
+- 404 not found
+- authentication / authorization failures
+- programming errors
+
+Default retry budget:
+
+- 3 total attempts
+- exponential backoff
+- jitter
+- roughly 10 seconds maximum wall-time per retried request
 
 ## Build configuration
 
@@ -376,8 +466,7 @@ The GitHub Pages workflow overrides the build base directly with:
 npx vite build --base=/heartbeat365/
 ```
 
-For another static host, set the base path to match where the app will be
-served.
+For another static host, set the base path to match where the app will be served.
 
 ## Deploy
 
@@ -392,7 +481,7 @@ This fork includes a GitHub Pages workflow at:
 It runs on:
 
 - push to `master`
-- a scheduled cron every 6 hours
+- scheduled cron every 6 hours
 - manual workflow dispatch
 
 The workflow:
@@ -410,7 +499,17 @@ Required repo secret:
 HEARTBEAT_PAT
 ```
 
-Use a GitHub token with access to the tracked repositories.
+Use a GitHub token with access to the tracked GitHub repositories.
+
+Optional repo secrets, depending on configured providers:
+
+```text
+CODEBERG_TOKEN
+GITLAB_TOKEN
+<custom tokenEnv values from instances.yml>
+```
+
+The workflow currently performs a full fetch on every push, even for README or UI-only changes. A previous attempt to decouple fetch from build was reverted. Treat future fetch/build decoupling as a separate design task, not part of normal README or version-bump work.
 
 ### Monthly repo health check
 
@@ -420,17 +519,9 @@ This fork includes a monthly repo health-check workflow at:
 .github/workflows/repo-health.yml
 ```
 
-It runs on the 1st of each month and can also be triggered manually from
-the Actions tab.
+It runs on the 1st of each month and can also be triggered manually from the Actions tab.
 
-The workflow checks every repository listed in the repo YAML files against
-the GitHub API and opens a GitHub Issue if any tracked repos are:
-
-- broken or not found
-- renamed or transferred
-- archived
-- inaccessible to the configured token
-- returning other API errors
+Current limitation: the health-check workflow is GitHub-oriented. It checks repo YAML entries against the GitHub API and may not correctly understand non-GitHub prefixed entries such as `codeberg:`, `gitlab:`, `git:`, `nostr:`, or self-hosted Forgejo/Gitea labels. Treat its results as a GitHub repo-health helper, not a complete multi-provider health checker.
 
 The workflow uses this repo secret:
 
@@ -438,9 +529,9 @@ The workflow uses this repo secret:
 HEARTBEAT_PAT
 ```
 
-If issues are found, it opens a GitHub Issue with the `repo-health` label.
-Make sure Issues are enabled on the repository. If the repository requires
-labels to exist before use, create the `repo-health` label.
+If issues are found, it opens a GitHub Issue with the `repo-health` label. Make sure Issues are enabled on the repository.
+
+If the repository requires labels to exist before use, create the `repo-health` label.
 
 ### Vercel
 
@@ -463,8 +554,7 @@ GITHUB_TOKEN
 HEARTBEAT_WINDOW_DAYS
 ```
 
-Set `HEARTBEAT_WINDOW_DAYS=365` if you want an annual dataset. Omit it to
-use the fetch script's default `90`.
+Set `HEARTBEAT_WINDOW_DAYS=365` if you want an annual dataset. Omit it to use the fetch script's default `90`.
 
 For scheduled Vercel refreshes, set this repo secret:
 
@@ -472,10 +562,9 @@ For scheduled Vercel refreshes, set this repo secret:
 VERCEL_DEPLOY_HOOK_URL
 ```
 
-The included workflow at `.github/workflows/refresh.yml` pings that deploy
-hook every 6 hours.
+The included workflow at `.github/workflows/refresh.yml` pings that deploy hook every 6 hours.
 
-## Static hosting elsewhere
+### Static hosting elsewhere
 
 You can also build in CI and serve `dist/` from any static host.
 
@@ -506,10 +595,47 @@ Or pass Vite's base flag directly:
 npx vite build --base=/heartbeat365/
 ```
 
+## Architecture
+
+```text
+scripts/
+├── fetch.ts
+├── lib/
+│   └── retry.ts
+└── providers/
+    ├── github.ts
+    ├── forgejo.ts
+    ├── gitlab.ts
+    ├── git.ts
+    └── nostr.ts
+
+src/
+└── types.ts
+
+repos.general.yml
+repos.nostr.yml
+repos.opensats.yml
+instances.yml
+```
+
+`fetch.ts` owns config loading, repo-entry parsing, provider routing, dataset assembly, and writing `public/data/events.json`.
+
+Provider modules own host-specific fetching and event shaping.
+
+`src/types.ts` owns the shared Zod schemas for events, datasets, repo config, and self-hosted instance config.
+
+## Known limitations
+
+- Plain Git URLs are commits-only.
+- NIP-34 repo state events are not converted into commit events.
+- Cross-host mirror deduplication is not implemented.
+- The monthly repo-health workflow is GitHub-oriented and not a complete multi-provider checker.
+- The workflow currently does a full fetch on every push.
+- `package.json` still reports version `0.1.0`; the version has not yet been bumped for the multi-provider upgrade.
+
 ## Credits
 
-Built on [OpenSats/heartbeat](https://github.com/OpenSats/heartbeat) by the
-OpenSats team.
+Built on [OpenSats/heartbeat](https://github.com/OpenSats/heartbeat) by the OpenSats team.
 
 ## License
 

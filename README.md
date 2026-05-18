@@ -2,7 +2,7 @@
 
 Static activity dashboard for tracked OpenSats-funded bitcoin and nostr repositories.
 
-heartbeat365 renders commits, pull requests / merge requests, issues, releases, and NIP-34 nostr repo activity as a `git log --oneline`-style timeline. This fork is configured with a 365-day data window for annual research and impact-report workflows.
+heartbeat365 renders commits, pull requests / merge requests, issues, releases, and NIP-34 nostr repo activity as a `git log --oneline`-style timeline. This fork is configured with a 365-day data window for annual research.
 
 Live site: https://arvin21m.github.io/heartbeat365/  
 Live dataset: https://arvin21m.github.io/heartbeat365/data/events.json  
